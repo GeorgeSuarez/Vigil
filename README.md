@@ -21,8 +21,8 @@ Built as a portfolio project targeting Esri frontend roles such as:
 ## Quick start
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open http://localhost:5173. The app runs **without any API key** — it uses the OpenStreetMap basemap and Esri's public sample services.
@@ -42,14 +42,14 @@ Open http://localhost:5173. The app runs **without any API key** — it uses the
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Vite dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run preview` | Serve the production build |
-| `npm test` | Vitest (run once) |
-| `npm run test:watch` | Vitest watch mode |
-| `npm run typecheck` | `tsc -b` |
-| `npm run lint` | oxlint |
-| `npm run format` | oxfmt write |
+| `pnpm dev` | Vite dev server |
+| `pnpm build` | Typecheck + production build |
+| `pnpm preview` | Serve the production build |
+| `pnpm test` | Vitest (run once) |
+| `pnpm test:watch` | Vitest watch mode |
+| `pnpm typecheck` | `tsc -b` |
+| `pnpm lint` | oxlint |
+| `pnpm format` | oxfmt write |
 
 ## Architecture
 
@@ -87,7 +87,7 @@ src/
 Any static host works — the app is a plain Vite SPA:
 
 - **Vercel:** import the repo; set `VITE_ARCGIS_API_KEY` in project env vars
-- **Netlify:** build command `npm run build`, publish `dist`
+- **Netlify:** build command `pnpm build`, publish `dist`
 
 ## Roadmap
 
