@@ -34,8 +34,7 @@ export function LayerPanel({ layers, visibility, onToggle }: LayerPanelProps) {
       </ul>
 
       <p className="side-panel-foot">
-        Data: Esri public sample services · popups and clustering are configured in
-        code.
+        Data: Esri public sample services · popups and clustering are configured in code.
       </p>
     </aside>
   )

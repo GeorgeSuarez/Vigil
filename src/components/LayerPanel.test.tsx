@@ -4,9 +4,7 @@ import { LayerPanel } from './LayerPanel'
 import { LAYER_DESCRIPTORS } from '../lib/layers'
 
 const setup = (visibility: Record<string, boolean>) =>
-  render(
-    <LayerPanel layers={LAYER_DESCRIPTORS} visibility={visibility} onToggle={vi.fn()} />,
-  )
+  render(<LayerPanel layers={LAYER_DESCRIPTORS} visibility={visibility} onToggle={vi.fn()} />)
 
 describe('LayerPanel', () => {
   it('renders every layer title and description', () => {

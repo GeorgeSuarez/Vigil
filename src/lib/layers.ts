@@ -81,9 +81,7 @@ function formatQuakeDate(a: QuakeAttributes): string {
 
 /** Builds the HTML shown in an earthquake popup. Pure so it can be unit-tested. */
 export function buildQuakePopupHtml(a: QuakeAttributes): string {
-  const deaths = formatNullable(
-    a.num_deaths === null ? null : formatNumber(a.num_deaths),
-  )
+  const deaths = formatNullable(a.num_deaths === null ? null : formatNumber(a.num_deaths))
   const damages = formatNullable(
     a.mill_damages === null ? null : `$${formatNumber(a.mill_damages)}M`,
   )
@@ -114,23 +112,14 @@ export function buildHurricanePopupHtml(a: HurricaneAttributes): string {
 
 const quakePopupTemplate = new PopupTemplate({
   title: 'M{magnitude} · {name}',
-  outFields: [
-    'name',
-    'magnitude',
-    'year_',
-    'mo',
-    'dy',
-    'num_deaths',
-    'mill_damages',
-  ],
+  outFields: ['name', 'magnitude', 'year_', 'mo', 'dy', 'num_deaths', 'mill_damages'],
   content: ({ graphic }) => buildQuakePopupHtml(graphic.attributes as QuakeAttributes),
 })
 
 const hurricanePopupTemplate = new PopupTemplate({
   title: 'Hurricane event {EVENTID}',
   outFields: ['EVENTID', 'STAGE', 'WINDSPEED', 'PRESSURE'],
-  content: ({ graphic }) =>
-    buildHurricanePopupHtml(graphic.attributes as HurricaneAttributes),
+  content: ({ graphic }) => buildHurricanePopupHtml(graphic.attributes as HurricaneAttributes),
 })
 
 /** Creates the live FeatureLayer instances described by LAYER_DESCRIPTORS. */
@@ -142,10 +131,7 @@ export function buildFeatureLayers(): FeatureLayer[] {
       url: d.url,
       visible: d.defaultVisible,
       popupTemplate: d.id === 'earthquakes' ? quakePopupTemplate : hurricanePopupTemplate,
-      featureReduction:
-        d.id === 'earthquakes'
-          ? { type: 'cluster', clusterRadius: 60 }
-          : undefined,
+      featureReduction: d.id === 'earthquakes' ? { type: 'cluster', clusterRadius: 60 } : undefined,
     })
   })
 }

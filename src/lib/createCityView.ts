@@ -79,10 +79,7 @@ export function createCityView({
   }
 
   view.ui.add(new Legend({ view }), 'bottom-left')
-  view.ui.add(
-    new ScaleBar({ view, unit: 'dual' }),
-    'bottom-left',
-  )
+  view.ui.add(new ScaleBar({ view, unit: 'dual' }), 'bottom-left')
 
   return { view, layers }
 }

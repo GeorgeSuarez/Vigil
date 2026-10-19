@@ -33,8 +33,6 @@ describe('Header', () => {
 
   it('renders one calcite-option per basemap', () => {
     const { container } = setup(false)
-    expect(container.querySelectorAll('calcite-option').length).toBe(
-      BASEMAP_OPTIONS.length,
-    )
+    expect(container.querySelectorAll('calcite-option').length).toBe(BASEMAP_OPTIONS.length)
   })
 })

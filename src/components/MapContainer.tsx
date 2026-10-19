@@ -15,12 +15,7 @@ export interface MapContainerProps {
  * on unmount, which keeps React StrictMode's double-effect safe); props are
  * applied imperatively so they never recreate the map.
  */
-export function MapContainer({
-  basemap,
-  apiKey,
-  visibility,
-  onStatusChange,
-}: MapContainerProps) {
+export function MapContainer({ basemap, apiKey, visibility, onStatusChange }: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<CityView | null>(null)
   const [layers, setLayers] = useState<readonly FeatureLayer[]>([])

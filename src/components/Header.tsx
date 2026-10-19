@@ -8,21 +8,11 @@ export interface HeaderProps {
 }
 
 /** App header: brand, basemap switcher, and API-key status chip. */
-export function Header({
-  hasApiKey,
-  basemap,
-  basemapOptions,
-  onBasemapChange,
-}: HeaderProps) {
+export function Header({ hasApiKey, basemap, basemapOptions, onBasemapChange }: HeaderProps) {
   return (
     <header className="app-header">
       <div className="brand">
-        <svg
-          className="brand-mark"
-          viewBox="0 0 32 32"
-          aria-hidden="true"
-          focusable="false"
-        >
+        <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
           <circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
           <ellipse
             cx="16"

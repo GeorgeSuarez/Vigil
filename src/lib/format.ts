@@ -6,10 +6,7 @@ export function formatNumber(value: number): string {
 }
 
 /** Formats a nullable value with a readable fallback. */
-export function formatNullable(
-  value: string | number | null | undefined,
-  fallback = '—',
-): string {
+export function formatNullable(value: string | number | null | undefined, fallback = '—'): string {
   if (value === null || value === undefined || value === '') return fallback
   return String(value)
 }
@@ -18,13 +15,9 @@ export function formatNullable(
  * Formats a coordinate as degrees with a hemisphere suffix,
  * e.g. (37.4419, 'lat') → "37.4419° N".
  */
-export function formatDegrees(
-  value: number | null | undefined,
-  axis: 'lat' | 'lon',
-): string {
+export function formatDegrees(value: number | null | undefined, axis: 'lat' | 'lon'): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
-  const hemisphere =
-    axis === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W'
+  const hemisphere = axis === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W'
   return `${Math.abs(value).toFixed(4)}° ${hemisphere}`
 }
 

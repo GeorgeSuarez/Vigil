@@ -49,7 +49,7 @@ Open http://localhost:5173. The app runs **without any API key** — it uses the
 | `npm run test:watch` | Vitest watch mode |
 | `npm run typecheck` | `tsc -b` |
 | `npm run lint` | oxlint |
-| `npm run format` | Prettier write |
+| `npm run format` | oxfmt write |
 
 ## Architecture
 
