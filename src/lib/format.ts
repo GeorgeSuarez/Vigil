@@ -30,3 +30,22 @@ export function formatScale(scale: number | null | undefined): string {
   if (scale >= 1_000) return `1 : ${(scale / 1_000).toFixed(1)}K`
   return `1 : ${Math.round(scale)}`
 }
+
+/**
+ * Formats USGS-style epoch milliseconds as a UTC timestamp,
+ * e.g. 1792460072709 → "Jul 18, 2026, 06:14 UTC".
+ */
+const EPOCH_FORMAT = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'UTC',
+})
+
+export function formatEpoch(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined || !Number.isFinite(ms)) return '—'
+  return `${EPOCH_FORMAT.format(new Date(ms))} UTC`
+}

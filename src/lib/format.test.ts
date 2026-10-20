@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDegrees, formatNullable, formatNumber, formatScale } from './format'
+import { formatDegrees, formatEpoch, formatNullable, formatNumber, formatScale } from './format'
 
 describe('formatNumber', () => {
   it('adds thousands separators', () => {
@@ -54,5 +54,17 @@ describe('formatScale', () => {
   it('falls back for missing or invalid values', () => {
     expect(formatScale(null)).toBe('—')
     expect(formatScale(0)).toBe('—')
+  })
+})
+
+describe('formatEpoch', () => {
+  it('formats epoch ms as a UTC timestamp', () => {
+    expect(formatEpoch(1792460072709)).toMatch(/UTC$/)
+    expect(formatEpoch(0)).toMatch(/^Jan 1, 1970, 00:00 UTC$/)
+  })
+
+  it('falls back for missing values', () => {
+    expect(formatEpoch(null)).toBe('—')
+    expect(formatEpoch(Number.NaN)).toBe('—')
   })
 })

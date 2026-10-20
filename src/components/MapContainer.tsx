@@ -1,4 +1,3 @@
-import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
 import { useEffect, useRef, useState } from 'react'
 import {
   createCityView,
@@ -6,7 +5,7 @@ import {
   type ExtentStats,
   type ViewStatus,
 } from '../lib/createCityView'
-import type { LayerId } from '../lib/layers'
+import type { AppLayer, LayerId } from '../lib/layers'
 
 export interface MapContainerProps {
   basemap: string
@@ -35,7 +34,7 @@ export function MapContainer({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const timeStripRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<CityView | null>(null)
-  const [layers, setLayers] = useState<readonly FeatureLayer[]>([])
+  const [layers, setLayers] = useState<readonly AppLayer[]>([])
 
   useEffect(() => {
     const container = containerRef.current

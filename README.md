@@ -6,7 +6,7 @@ A polished, deployable mapping app built with the **ArcGIS Maps SDK for JavaScri
 
 - 🗺️ **ArcGIS Maps SDK for JavaScript 5.x** via tree-shakeable ES module imports (`@arcgis/core`)
 - 🧩 **Calcite Design System** web components (`calcite-switch`, `calcite-select`, `calcite-chip`) used natively from React 19
-- 📡 Two keyless public **FeatureLayers** (global earthquakes with clustering, Atlantic hurricanes) with custom popup templates
+- 📡 **Live USGS earthquake feed** — the past 7 days worldwide as a `GeoJSONLayer`: clustered by magnitude, auto-refreshing every 2 min, with popup links to USGS event pages; plus a static Atlantic-hurricanes sample layer. Both keyless, with custom popup templates
 - 🔎 Search (geocoding) widget enabled when an API key is configured
 - 📊 Live status bar — map center, zoom, scale — driven by SDK `watch` handlers
 - 🌓 Dark, glassy UI with the SDK's dark theme and Calcite dark mode

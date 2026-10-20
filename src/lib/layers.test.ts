@@ -18,40 +18,46 @@ describe('LAYER_DESCRIPTORS', () => {
 })
 
 describe('buildFeatureLayers', () => {
-  it('declares timeInfo with the service date range only on the temporal layer', () => {
+  it('builds the live USGS feed layer with epoch timeInfo, and a service layer without', () => {
     const layers = buildFeatureLayers()
     const quakes = layers.find((l) => l.id === 'earthquakes')
     const storms = layers.find((l) => l.id === 'hurricanes')
-    expect(quakes?.timeInfo?.startField).toBe('date_')
-    expect(quakes?.timeInfo?.fullTimeExtent?.start).toEqual(new Date(259_200_000))
-    expect(quakes?.timeInfo?.fullTimeExtent?.end).toEqual(new Date(1_243_468_800_000))
-    expect(storms?.timeInfo).toBeUndefined()
+    expect(quakes?.type).toBe('geojson')
+    expect(quakes?.timeInfo?.startField).toBe('time')
+    expect(storms?.type).toBe('feature')
+    // Service layers keep timeInfo null until the service publishes one at load;
+    // the Hurricanes sample service does not.
+    expect(storms?.timeInfo).toBeNull()
   })
 })
 
 describe('buildQuakePopupHtml', () => {
   const attrs: QuakeAttributes = {
-    name: 'Sumatra',
-    magnitude: 7.5,
-    year_: 2004,
-    mo: 12,
-    dy: 26,
-    num_deaths: 227898,
-    mill_damages: null,
+    mag: 4.8,
+    place: '12 km NE of Barstow, CA',
+    time: 1_792_460_072_709,
+    depth: 8.2,
+    url: 'https://earthquake.usgs.gov/earthquakes/eventpage/abc123',
+    tsunami: 0,
   }
 
-  it('includes magnitude, date, and formatted stats', () => {
+  it('includes magnitude, place, UTC time, depth, and the USGS link', () => {
     const html = buildQuakePopupHtml(attrs)
-    // The quake name belongs to the popup title template, not the content body.
-    expect(html).not.toContain('Sumatra')
-    expect(html).toContain('7.5')
-    expect(html).toContain('Dec 26, 2004')
-    expect(html).toContain('227,898')
+    expect(html).toContain('4.8')
+    expect(html).toContain('UTC')
+    expect(html).toContain('8.2 km')
+    expect(html).toContain('href="https://earthquake.usgs.gov/earthquakes/eventpage/abc123"')
   })
 
-  it('renders em dashes for missing values', () => {
-    const html = buildQuakePopupHtml({ ...attrs, name: null, num_deaths: null })
+  it('renders em dashes and omits the link when values are missing', () => {
+    const html = buildQuakePopupHtml({ ...attrs, place: null, depth: null, url: null })
     expect(html).toContain('—')
+    expect(html).not.toContain('href=')
+  })
+
+  it('flags tsunami events', () => {
+    const html = buildQuakePopupHtml({ ...attrs, tsunami: 1 })
+    expect(html).toContain('yes')
   })
 })
 

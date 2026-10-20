@@ -1,9 +1,16 @@
 import PopupTemplate from '@arcgis/core/PopupTemplate'
+import GeoJSONLayer from '@arcgis/core/layers/GeoJSONLayer'
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
+import ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer'
+import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol'
 import TimeInfo from '@arcgis/core/layers/support/TimeInfo'
-import { formatNullable, formatNumber } from './format'
+import { formatEpoch, formatNullable } from './format'
 
 export type { FeatureLayer }
+export type { GeoJSONLayer }
+
+/** Both concrete layer types used by the app — they share the surface we rely on. */
+export type AppLayer = FeatureLayer | GeoJSONLayer
 
 /** Static, testable description of a dataset shown in the layer panel. */
 export interface LayerDescriptor {
@@ -12,7 +19,9 @@ export interface LayerDescriptor {
   /** Compact label for tight UI contexts (e.g. the status bar). */
   shortTitle: string
   description: string
-  /** Public ArcGIS REST Feature Service endpoint (keyless access). */
+  /** Where the layer's data comes from — decides which layer class gets built. */
+  kind: 'geojson' | 'service'
+  /** ArcGIS REST Feature Service endpoint, or a public GeoJSON feed URL. */
   url: string
   defaultVisible: boolean
 }
@@ -21,16 +30,17 @@ export interface LayerDescriptor {
 export type LayerId = (typeof LAYER_DESCRIPTORS)[number]['id']
 
 /**
- * Keyless demo layers hosted on Esri's public sample server.
- * Swap in Living Atlas or ArcGIS Online hosted layers as the app grows.
+ * The quakes layer streams the live USGS feed (past 7 days, worldwide) and
+ * auto-refreshes. The hurricanes layer is a static Esri sample service.
  */
 export const LAYER_DESCRIPTORS: readonly LayerDescriptor[] = [
   {
     id: 'earthquakes',
-    title: 'Earthquakes, 1970–2018',
+    title: 'Earthquakes — live USGS feed',
     shortTitle: 'quakes',
-    description: 'M5+ global events, clustered by proximity.',
-    url: 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Earthquakes_Since1970/MapServer/0',
+    description: 'Past 7 days worldwide · refreshes automatically.',
+    kind: 'geojson',
+    url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson',
     defaultVisible: true,
   },
   {
@@ -38,20 +48,21 @@ export const LAYER_DESCRIPTORS: readonly LayerDescriptor[] = [
     title: 'Atlantic Hurricanes, 2000',
     shortTitle: 'storms',
     description: 'Storm fixes with pressure and wind speed.',
+    kind: 'service',
     url: 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Hurricanes/MapServer/0',
     defaultVisible: false,
   },
 ] as const
 
-/** Attribute shape of the Earthquakes sample layer (subset we render). */
+/** Attribute shape of the USGS quake feed (subset we render). */
 export interface QuakeAttributes {
-  name: string | null
-  magnitude: number | null
-  year_: number | null
-  mo: number | null
-  dy: number | null
-  num_deaths: number | null
-  mill_damages: number | null
+  mag: number | null
+  place: string | null
+  /** Epoch milliseconds (UTC). */
+  time: number | null
+  depth: number | null
+  url: string | null
+  tsunami: number | null
 }
 
 /** Attribute shape of the Hurricanes sample layer (subset we render). */
@@ -63,39 +74,20 @@ export interface HurricaneAttributes {
   Date_Time: number | null
 }
 
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const
-
-function formatQuakeDate(a: QuakeAttributes): string {
-  if (a.year_ === null || a.mo === null || a.dy === null) return '—'
-  const month = MONTHS[(a.mo - 1) % 12] ?? '—'
-  return `${month} ${a.dy}, ${a.year_}`
-}
-
-/** Builds the HTML shown in an earthquake popup. Pure so it can be unit-tested. */
+/** Builds the HTML shown in a live quake popup. Pure so it can be unit-tested. */
 export function buildQuakePopupHtml(a: QuakeAttributes): string {
-  const deaths = formatNullable(a.num_deaths === null ? null : formatNumber(a.num_deaths))
-  const damages = formatNullable(
-    a.mill_damages === null ? null : `$${formatNumber(a.mill_damages)}M`,
-  )
+  const depth = formatNullable(a.depth === null ? null : `${a.depth} km`)
+  const tsunami = a.tsunami && a.tsunami > 0 ? '<div><dt>Tsunami flag</dt><dd>yes</dd></div>' : ''
+  const link = a.url
+    ? `<div><dt>Details</dt><dd><a href="${a.url}" target="_blank" rel="noopener noreferrer">USGS event page</a></dd></div>`
+    : ''
   return [
     `<dl class="popup-facts">`,
-    `<div><dt>Date</dt><dd>${formatNullable(formatQuakeDate(a))}</dd></div>`,
-    `<div><dt>Magnitude</dt><dd>${formatNullable(a.magnitude)}</dd></div>`,
-    `<div><dt>Reported deaths</dt><dd>${deaths}</dd></div>`,
-    `<div><dt>Reported damages</dt><dd>${damages}</dd></div>`,
+    `<div><dt>Time (UTC)</dt><dd>${formatNullable(formatEpoch(a.time))}</dd></div>`,
+    `<div><dt>Magnitude</dt><dd>${formatNullable(a.mag)}</dd></div>`,
+    `<div><dt>Depth</dt><dd>${depth}</dd></div>`,
+    tsunami,
+    link,
     `</dl>`,
   ].join('')
 }
@@ -116,8 +108,8 @@ export function buildHurricanePopupHtml(a: HurricaneAttributes): string {
 }
 
 const quakePopupTemplate = new PopupTemplate({
-  title: 'M{magnitude} · {name}',
-  outFields: ['name', 'magnitude', 'year_', 'mo', 'dy', 'num_deaths', 'mill_damages'],
+  title: 'M{mag} · {place}',
+  outFields: ['mag', 'place', 'time', 'depth', 'url', 'tsunami'],
   content: ({ graphic }) => buildQuakePopupHtml(graphic.attributes as QuakeAttributes),
 })
 
@@ -127,29 +119,57 @@ const hurricanePopupTemplate = new PopupTemplate({
   content: ({ graphic }) => buildHurricanePopupHtml(graphic.attributes as HurricaneAttributes),
 })
 
-/** Creates the live FeatureLayer instances described by LAYER_DESCRIPTORS. */
-export function buildFeatureLayers(): FeatureLayer[] {
+/** Magnitude color ramp, mirroring the bins of the retired sample service. */
+function quakeRenderer(): ClassBreaksRenderer {
+  const symbol = (color: string): SimpleMarkerSymbol =>
+    new SimpleMarkerSymbol({ color, size: 10, outline: { color: '#0b1220', width: 0.5 } })
+  return new ClassBreaksRenderer({
+    field: 'mag',
+    defaultSymbol: symbol('#8b98a9'),
+    classBreakInfos: [
+      { minValue: 0, maxValue: 3, symbol: symbol('#f2d43d') },
+      { minValue: 3, maxValue: 4.5, symbol: symbol('#f8a13c') },
+      { minValue: 4.5, maxValue: 6, symbol: symbol('#e5544b') },
+      { minValue: 6, maxValue: 12, symbol: symbol('#a50f15') },
+    ],
+  })
+}
+
+/** Typed field declarations so the renderer, clustering, and timeInfo are stable. */
+const QUAKE_FIELDS = [
+  { name: 'mag', type: 'double' },
+  { name: 'place', type: 'string' },
+  { name: 'time', type: 'double' },
+  { name: 'depth', type: 'double' },
+  { name: 'tsunami', type: 'integer' },
+  { name: 'sig', type: 'integer' },
+  { name: 'url', type: 'string' },
+] as const
+
+/** Creates the live layer instances described by LAYER_DESCRIPTORS. */
+export function buildFeatureLayers(): AppLayer[] {
   return LAYER_DESCRIPTORS.map((d) => {
+    if (d.kind === 'geojson') {
+      return new GeoJSONLayer({
+        id: d.id,
+        title: d.title,
+        url: d.url,
+        visible: d.defaultVisible,
+        fields: QUAKE_FIELDS.map((f) => ({ ...f })),
+        renderer: quakeRenderer(),
+        popupTemplate: quakePopupTemplate,
+        featureReduction: { type: 'cluster', clusterRadius: 60 },
+        // Epoch-millis number field driving the TimeSlider.
+        timeInfo: new TimeInfo({ startField: 'time' }),
+        refreshInterval: 2,
+      })
+    }
     return new FeatureLayer({
       id: d.id,
       title: d.title,
       url: d.url,
       visible: d.defaultVisible,
-      popupTemplate: d.id === 'earthquakes' ? quakePopupTemplate : hurricanePopupTemplate,
-      featureReduction: d.id === 'earthquakes' ? { type: 'cluster', clusterRadius: 60 } : undefined,
-      // Declared explicitly (the service also publishes it) so the TimeSlider
-      // and view.timeExtent filtering work even if service metadata changes.
-      // fullTimeExtent mirrors the service's advertised range (static dataset).
-      timeInfo:
-        d.id === 'earthquakes'
-          ? new TimeInfo({
-              startField: 'date_',
-              fullTimeExtent: {
-                start: new Date(259_200_000),
-                end: new Date(1_243_468_800_000),
-              },
-            })
-          : undefined,
+      popupTemplate: hurricanePopupTemplate,
     })
   })
 }
