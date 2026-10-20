@@ -2,12 +2,6 @@
 
 A polished, deployable mapping app built with the **ArcGIS Maps SDK for JavaScript**, **React 19**, **TypeScript (strict)**, and the **Calcite Design System** — the stack Esri's own product teams use.
 
-Built as a portfolio project targeting Esri frontend roles such as:
-
-- **Application Developer – JavaScript** (Geo Experience Center)
-- **Software Engineer I – Front-End Engineer, ArcGIS Enterprise**
-- **TypeScript Software Development Engineer II** (ArcGIS Business Analyst)
-
 ## Features
 
 - 🗺️ **ArcGIS Maps SDK for JavaScript 5.x** via tree-shakeable ES module imports (`@arcgis/core`)
@@ -82,25 +76,8 @@ src/
 - Component tests render the real Calcite custom elements in jsdom and assert rendered attributes
 - The SDK-facing factory is exercised in the browser, not in jsdom
 
-## Deployment
-
-Any static host works — the app is a plain Vite SPA:
-
-- **Vercel:** import the repo; set `VITE_ARCGIS_API_KEY` in project env vars
-- **Netlify:** build command `pnpm build`, publish `dist`
-
-## Roadmap
-
-Planned extensions that map to the Esri role postings this project targets:
-
-1. **Accessibility pass** — keyboard navigation, ARIA-live map announcements, reduced-motion (WCAG/ARIA is an explicit requirement of the ArcGIS Enterprise front-end role)
-2. **Natural-language map query** — LLM parses a question into ArcGIS queries (matches Esri's AI/agent direction)
-3. **Component library extraction** — promote the map UI patterns into a Storybooked web-component library
-4. **i18n** — react-i18next with RTL support
-
 ## Learn more
 
 - [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/)
 - [Calcite Design System](https://developers.arcgis.com/calcite-design-system/)
 - [React 19 custom elements](https://react.dev/reference/react-dom/components#custom-elements)
-- [Esri careers](https://www.esri.com/en-us/about/careers/job-search)
