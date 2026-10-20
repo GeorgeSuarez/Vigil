@@ -15,6 +15,8 @@ export interface MapContainerProps {
   onExtentStats: (stats: ExtentStats) => void
   /** Hands the live CityView (view/layers/slider) up to App once created. */
   onReady?: (city: CityView) => void
+  /** Whether the time slider strip is shown; the strip div itself stays mounted. */
+  timeStripOpen: boolean
   initialCenter?: [number, number]
   initialZoom?: number
 }
@@ -31,6 +33,7 @@ export function MapContainer({
   onStatusChange,
   onExtentStats,
   onReady,
+  timeStripOpen,
   initialCenter,
   initialZoom,
 }: MapContainerProps) {
@@ -98,8 +101,9 @@ export function MapContainer({
         role="application"
         aria-label="Interactive world map showing recent earthquakes and hurricanes"
       />
-      {/* Empty to React — the widget host is created imperatively in the effect. */}
-      <div ref={timeStripRef} className="time-strip" />
+      {/* Empty to React — the widget host is created imperatively in the effect.
+          Toggled via [hidden] (not unmounted) so the widget keeps its container. */}
+      <div ref={timeStripRef} id="time-strip" className="time-strip" hidden={!timeStripOpen} />
     </div>
   )
 }

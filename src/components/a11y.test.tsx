@@ -28,7 +28,14 @@ describe('component accessibility (axe)', () => {
           onBasemapChange={vi.fn()}
         />
         <LayerPanel layers={LAYER_DESCRIPTORS} visibility={{}} onToggle={vi.fn()} />
-        <StatusBar status={status} extentItems={[{ label: 'quakes', count: 12 }]} />
+        <StatusBar
+          status={status}
+          extentItems={[{ label: 'quakes', count: 12 }]}
+          timeStripOpen
+          onToggleTimeStrip={vi.fn()}
+        />
+        {/* Target of the toggle's aria-controls. */}
+        <div id="time-strip" />
         <MapAnnouncer message="Map centered 37.4° N, 122.1° W, zoom 4." />
       </div>,
     )

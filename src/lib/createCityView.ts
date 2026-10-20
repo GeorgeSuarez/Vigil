@@ -40,6 +40,8 @@ export interface CityView {
   refreshExtentStats: () => void
   /** Applies a SQL where-clause to the quakes layer (render + queries). */
   applyQuakeFilter: (where: string | null) => void
+  /** Releases the temporal filter: resets the slider to the full extent. */
+  resetTimeWindow: () => void
   /** Null when no time slider host was provided. */
   timeSlider: TimeSlider | null
 }
@@ -247,5 +249,15 @@ export function createCityView({
   view.ui.add(new Legend({ view }), 'bottom-left')
   view.ui.add(new ScaleBar({ view, unit: 'dual' }), 'bottom-left')
 
-  return { view, layers, refreshExtentStats, applyQuakeFilter, timeSlider }
+  // --- Time window reset -------------------------------------------------------
+  // Collapsing the strip takes away the only visible time control, so the app
+  // releases the temporal filter rather than leaving the map silently filtered.
+  const resetTimeWindow = (): void => {
+    const full = timeSlider?.fullTimeExtent
+    if (!timeSlider || !full) return
+    // oxlint-disable-next-line react/immutability
+    timeSlider.timeExtent = { start: full.start, end: full.end }
+  }
+
+  return { view, layers, refreshExtentStats, applyQuakeFilter, resetTimeWindow, timeSlider }
 }

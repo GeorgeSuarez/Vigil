@@ -60,6 +60,22 @@ export function App() {
     cityRef.current = city
   }, [])
 
+  const [timeStripOpen, setTimeStripOpen] = useState(
+    // Open on desktop; collapsed on small screens where the strip would eat
+    // vertical space — the status-bar toggle reveals it on demand.
+    () => !window.matchMedia('(max-width: 720px)').matches,
+  )
+
+  const handleToggleTimeStrip = useCallback(() => {
+    setTimeStripOpen((open) => {
+      // Collapsing the strip removes the only visible time control, so
+      // release the temporal filter rather than leave the map silently
+      // filtered with no visible way to change it.
+      if (open) cityRef.current?.resetTimeWindow()
+      return !open
+    })
+  }, [])
+
   const runNlQuery = useCallback(async (text: string): Promise<string> => {
     executorRef.current ??= createNlqExecutor(() => cityRef.current)
     const executor = executorRef.current
@@ -143,6 +159,7 @@ export function App() {
           onReady={handleCityReady}
           initialCenter={initial.center}
           initialZoom={initial.zoom}
+          timeStripOpen={timeStripOpen}
         />
         <NlqPanel onRun={runNlQuery} llmActive={hasAnthropicKey} />
         <LayerPanel
@@ -151,7 +168,12 @@ export function App() {
           onToggle={toggleVisibility}
         />
       </main>
-      <StatusBar status={status} extentItems={extentItems} />
+      <StatusBar
+        status={status}
+        extentItems={extentItems}
+        timeStripOpen={timeStripOpen}
+        onToggleTimeStrip={handleToggleTimeStrip}
+      />
       <MapAnnouncer message={announcement} />
     </div>
   )

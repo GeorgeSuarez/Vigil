@@ -127,6 +127,11 @@ body {
   height: 100%;
 }
 
+/* Restate the hidden rule: the display above would beat the UA default. */
+.time-strip[hidden] {
+  display: none;
+}
+
 /* ---------- Header ---------- */
 
 .app-header {
@@ -263,7 +268,8 @@ body {
 
 .status-bar {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  gap: 8px;
   padding-block: 7px;
   padding-inline: 16px;
   padding-block-end: calc(7px + env(safe-area-inset-bottom, 0px));
@@ -273,13 +279,69 @@ body {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   z-index: 20;
+}
+
+/* Scrolling lives on the items row so the toggle never scrolls away. */
+.status-items {
+  display: flex;
+  gap: 20px;
   overflow-x: auto;
   white-space: nowrap;
 }
 
-/* Keep natural width under the reset's min-width: 0; the bar scrolls. */
+/* Keep natural width under the reset's min-width: 0; the row scrolls. */
 .status-item {
   flex: none;
+}
+
+.time-toggle {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 30px;
+  block-size: 30px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Lit while the strip is open — the state stays readable at a glance. */
+.time-toggle[aria-expanded='true'] {
+  color: var(--accent);
+}
+
+/* Hit area at least 44px regardless of the visual size. */
+.time-toggle::after {
+  content: '';
+  position: absolute;
+  inset: min(0px, (100% - 44px) / 2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .time-toggle:hover {
+    color: var(--text);
+  }
+}
+
+.time-toggle:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .time-toggle {
+    transition:
+      transform 160ms ease-out,
+      color 160ms ease-out;
+  }
+}
+
+.time-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .status-item strong {
@@ -497,10 +559,5 @@ body {
     inset-block-end: calc(12px + env(safe-area-inset-bottom, 0px));
     width: auto;
     max-height: 42vh;
-  }
-
-  /* The temporal filter is a desktop nicety; the bottom sheet takes over. */
-  .time-strip {
-    display: none;
   }
 }
