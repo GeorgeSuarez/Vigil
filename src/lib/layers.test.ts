@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildFeatureLayers,
   buildHurricanePopupHtml,
   buildQuakePopupHtml,
   LAYER_DESCRIPTORS,
@@ -13,6 +14,18 @@ describe('LAYER_DESCRIPTORS', () => {
     for (const layer of LAYER_DESCRIPTORS) {
       expect(layer.url).toMatch(/^https:\/\//)
     }
+  })
+})
+
+describe('buildFeatureLayers', () => {
+  it('declares timeInfo with the service date range only on the temporal layer', () => {
+    const layers = buildFeatureLayers()
+    const quakes = layers.find((l) => l.id === 'earthquakes')
+    const storms = layers.find((l) => l.id === 'hurricanes')
+    expect(quakes?.timeInfo?.startField).toBe('date_')
+    expect(quakes?.timeInfo?.fullTimeExtent?.start).toEqual(new Date(259_200_000))
+    expect(quakes?.timeInfo?.fullTimeExtent?.end).toEqual(new Date(1_243_468_800_000))
+    expect(storms?.timeInfo).toBeUndefined()
   })
 })
 

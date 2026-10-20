@@ -1,5 +1,6 @@
 import PopupTemplate from '@arcgis/core/PopupTemplate'
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
+import TimeInfo from '@arcgis/core/layers/support/TimeInfo'
 import { formatNullable, formatNumber } from './format'
 
 export type { FeatureLayer }
@@ -136,6 +137,19 @@ export function buildFeatureLayers(): FeatureLayer[] {
       visible: d.defaultVisible,
       popupTemplate: d.id === 'earthquakes' ? quakePopupTemplate : hurricanePopupTemplate,
       featureReduction: d.id === 'earthquakes' ? { type: 'cluster', clusterRadius: 60 } : undefined,
+      // Declared explicitly (the service also publishes it) so the TimeSlider
+      // and view.timeExtent filtering work even if service metadata changes.
+      // fullTimeExtent mirrors the service's advertised range (static dataset).
+      timeInfo:
+        d.id === 'earthquakes'
+          ? new TimeInfo({
+              startField: 'date_',
+              fullTimeExtent: {
+                start: new Date(259_200_000),
+                end: new Date(1_243_468_800_000),
+              },
+            })
+          : undefined,
     })
   })
 }

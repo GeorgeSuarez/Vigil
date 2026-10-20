@@ -13,6 +13,7 @@ A polished, deployable mapping app built with the **ArcGIS Maps SDK for JavaScri
 - ♻️ View lifecycle done right: created once on mount, destroyed on unmount (StrictMode-safe)
 - 🔗 **Shareable deep links** — basemap, extent, and layer visibility mirror into the URL hash and restore on load (`#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,hurricanes`)
 - 🔢 **Live view-extent stats** — per-layer feature counts in the status bar, recomputed via `queryFeatureCount` whenever the map stops moving or a layer toggles
+- ⏱️ **Time slider** — dual-thumb temporal filter over the quakes layer (SDK `TimeSlider` + `layer.timeInfo`); the map and the in-view counts both react to the active window. The range is derived from the layer's own time extent at load, not hardcoded.
 
 ## Quick start
 

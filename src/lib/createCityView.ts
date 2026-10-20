@@ -4,6 +4,7 @@ import Home from '@arcgis/core/widgets/Home'
 import Legend from '@arcgis/core/widgets/Legend'
 import ScaleBar from '@arcgis/core/widgets/ScaleBar'
 import Search from '@arcgis/core/widgets/Search'
+import TimeSlider from '@arcgis/core/widgets/TimeSlider'
 import { configureArcgisSdk } from './arcgis'
 import { buildFeatureLayers, type FeatureLayer } from './layers'
 
@@ -27,6 +28,8 @@ export interface CreateCityViewOptions {
   /** Initial center as [lon, lat]; falls back to the contiguous US. */
   initialCenter?: [number, number]
   initialZoom?: number
+  /** Host element for the TimeSlider; omitted when the UI has no time strip. */
+  timeSliderHost?: HTMLDivElement | null
 }
 
 export interface CityView {
@@ -34,6 +37,8 @@ export interface CityView {
   layers: readonly FeatureLayer[]
   /** Recomputes view-extent stats; call after layer visibility changes. */
   refreshExtentStats: () => void
+  /** Null when no time slider host was provided. */
+  timeSlider: TimeSlider | null
 }
 
 /** Contiguous US center used for the initial extent. */
@@ -53,6 +58,7 @@ export function createCityView({
   onExtentStats,
   initialCenter,
   initialZoom,
+  timeSliderHost,
 }: CreateCityViewOptions): CityView {
   configureArcgisSdk(apiKey)
 
@@ -98,7 +104,7 @@ export function createCityView({
       .filter((layer) => layer.visible)
       .map((layer) =>
         layer
-          .queryFeatureCount({ geometry: extent })
+          .queryFeatureCount({ geometry: extent, timeExtent: view.timeExtent })
           .then((count) => {
             counts[layer.id] = count
           })
@@ -111,12 +117,33 @@ export function createCityView({
     })
   }
 
+  view.watch('timeExtent', () => refreshExtentStats())
   view.when(() => {
     refreshExtentStats()
     view.watch('stationary', (stationary) => {
       if (stationary) refreshExtentStats()
     })
   })
+
+  // --- Time slider ------------------------------------------------------------
+  // The quakes layer declares timeInfo (startField: 'date_'); once it loads,
+  // the slider's full range is derived from the layer's own time extent rather
+  // than hardcoded dates. With `view` set, the widget updates view.timeExtent
+  // automatically, which filters time-aware layers.
+  let timeSlider: TimeSlider | null = null
+  const quakeLayer = layers.find((layer) => layer.id === 'earthquakes')
+
+  if (timeSliderHost && quakeLayer) {
+    timeSlider = new TimeSlider({ container: timeSliderHost, mode: 'time-window', view })
+    console.warn('[city] slider constructed; container kids=', timeSliderHost.childElementCount)
+    quakeLayer.when(() => {
+      if (quakeLayer.destroyed || !timeSlider) return
+      const range = quakeLayer.timeInfo?.fullTimeExtent
+      if (!range?.start || !range?.end) return
+      timeSlider.fullTimeExtent = { start: range.start, end: range.end }
+      timeSlider.timeExtent = { start: range.start, end: range.end }
+    })
+  }
 
   view.ui.add(new Home({ view }), 'top-left')
 
@@ -128,5 +155,5 @@ export function createCityView({
   view.ui.add(new Legend({ view }), 'bottom-left')
   view.ui.add(new ScaleBar({ view, unit: 'dual' }), 'bottom-left')
 
-  return { view, layers, refreshExtentStats }
+  return { view, layers, refreshExtentStats, timeSlider }
 }

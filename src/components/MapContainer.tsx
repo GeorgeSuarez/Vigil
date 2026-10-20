@@ -33,12 +33,19 @@ export function MapContainer({
   initialZoom,
 }: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const timeStripRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<CityView | null>(null)
   const [layers, setLayers] = useState<readonly FeatureLayer[]>([])
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container) return
+    const strip = timeStripRef.current
+    if (!container || !strip) return
+    // Imperative host node: created and owned outside React so the widget's
+    // DOM survives StrictMode's double-mount and later reconciliations.
+    const host = document.createElement('div')
+    host.className = 'time-slider-host'
+    strip.appendChild(host)
     const city = createCityView({
       container,
       basemap,
@@ -47,11 +54,14 @@ export function MapContainer({
       onExtentStats,
       initialCenter,
       initialZoom,
+      timeSliderHost: host,
     })
     viewRef.current = city
     setLayers(city.layers)
     return () => {
+      city.timeSlider?.destroy()
       city.view.destroy()
+      host.remove()
       viewRef.current = null
     }
     // The view is created once; basemap and layer changes are synced imperatively.
@@ -77,5 +87,11 @@ export function MapContainer({
     viewRef.current?.refreshExtentStats()
   }, [layers, visibility])
 
-  return <div ref={containerRef} className="map-root" />
+  return (
+    <div className="map-area">
+      <div ref={containerRef} className="map-root" />
+      {/* Empty to React — the widget host is created imperatively in the effect. */}
+      <div ref={timeStripRef} className="time-strip" />
+    </div>
+  )
 }
