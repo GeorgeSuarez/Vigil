@@ -173,12 +173,6 @@ body {
   letter-spacing: 0.01em;
 }
 
-.brand-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
 .header-controls {
   display: flex;
   align-items: center;

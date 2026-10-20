@@ -14,10 +14,10 @@ const setup = (hasApiKey: boolean) =>
   )
 
 describe('Header', () => {
-  it('renders the title and tech subtitle', () => {
+  it('renders the title', () => {
     setup(false)
     expect(screen.getByText('City Explorer')).toBeVisible()
-    expect(screen.getByText(/ArcGIS Maps SDK/)).toBeVisible()
+    expect(screen.queryByText(/ArcGIS Maps SDK/)).toBeNull()
   })
 
   it('shows an API-key hint chip when no key is configured', () => {

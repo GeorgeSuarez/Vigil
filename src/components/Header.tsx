@@ -27,7 +27,6 @@ export function Header({ hasApiKey, basemap, basemapOptions, onBasemapChange }: 
         </svg>
         <div className="brand-text">
           <h1>City Explorer</h1>
-          <span className="brand-sub">ArcGIS Maps SDK · React · TypeScript</span>
         </div>
       </div>
 
