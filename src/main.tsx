@@ -8,9 +8,12 @@ import './index.css'
 
 import { App } from './App'
 
-defineCustomElements(window)
+defineCustomElements()
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.querySelector<HTMLElement>('#root')
+if (!rootElement) throw new Error('#root element is missing from index.html')
+
+createRoot(rootElement).render(
   <StrictMode>
     <App />
   </StrictMode>,

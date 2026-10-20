@@ -1,8 +1,12 @@
 /** Framework-agnostic formatting helpers. Kept pure so they are trivially testable. */
 
-/** Formats a number with thousands separators, e.g. 1234567 → "1,234,567". */
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-US').format(value)
+const NUMBER_FORMAT = new Intl.NumberFormat('en-US')
+
+/** Formats a number with thousands separators, e.g. 1234567 → "1,234,567";
+ * invalid or missing values read as "—". */
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+  return NUMBER_FORMAT.format(value)
 }
 
 /** Formats a nullable value with a readable fallback. */
@@ -17,7 +21,12 @@ export function formatNullable(value: string | number | null | undefined, fallba
  */
 export function formatDegrees(value: number | null | undefined, axis: 'lat' | 'lon'): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
-  const hemisphere = axis === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W'
+  let hemisphere: string
+  if (axis === 'lat') {
+    hemisphere = value >= 0 ? 'N' : 'S'
+  } else {
+    hemisphere = value >= 0 ? 'E' : 'W'
+  }
   return `${Math.abs(value).toFixed(4)}° ${hemisphere}`
 }
 

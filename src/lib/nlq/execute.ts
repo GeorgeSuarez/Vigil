@@ -31,6 +31,102 @@ function quakeWhere(state: FilterState): string | null {
   return clauses.length > 0 ? clauses.join(' AND ') : null
 }
 
+/** Everything an intent handler needs, resolved once per command. */
+interface IntentContext {
+  targets: NlqTargets
+  /** Session state — filters persist across commands. */
+  state: FilterState
+  quakeLayer: AppLayer | undefined
+}
+
+function clearFilters(ctx: IntentContext): string {
+  ctx.state.magMin = null
+  ctx.state.regionWhere = null
+  ctx.state.regionLabel = null
+  if (ctx.quakeLayer) {
+    ctx.targets.applyQuakeFilter(null)
+  }
+  const full = ctx.targets.timeSlider?.fullTimeExtent
+  if (ctx.targets.timeSlider && full?.start && full?.end) {
+    ctx.targets.timeSlider.timeExtent = { start: full.start, end: full.end }
+  }
+  return 'Filters cleared — showing everything in the current time window.'
+}
+
+function filterByMagnitude(
+  intent: Extract<NlqIntent, { kind: 'filter-magnitude' }>,
+  ctx: IntentContext,
+): string {
+  ctx.state.magMin = intent.min
+  if (ctx.quakeLayer) {
+    ctx.targets.applyQuakeFilter(quakeWhere(ctx.state))
+  }
+  return `Showing M${intent.min}+ quakes${ctx.state.regionLabel ? ` in ${ctx.state.regionLabel}` : ''}.`
+}
+
+function filterByRegion(
+  intent: Extract<NlqIntent, { kind: 'filter-region' }>,
+  ctx: IntentContext,
+): string {
+  const region = lookupRegion(intent.region)
+  if (!region) {
+    return `I don't know that region. ${NLQ_HELP}`
+  }
+  ctx.state.regionWhere = region.where
+  ctx.state.regionLabel = region.label
+  if (ctx.quakeLayer) {
+    ctx.targets.applyQuakeFilter(quakeWhere(ctx.state))
+  }
+  return `Showing quakes in ${region.label}${ctx.state.magMin !== null ? ` (M${ctx.state.magMin}+)` : ''}.`
+}
+
+function setTimeWindow(
+  intent: Extract<NlqIntent, { kind: 'time-window' }>,
+  ctx: IntentContext,
+): string {
+  const slider = ctx.targets.timeSlider
+  if (!slider) {
+    return 'The time slider is not available.'
+  }
+  const now = Date.now()
+  slider.timeExtent = {
+    start: new Date(now - intent.startHoursAgo * HOUR_MS),
+    end: new Date(now - intent.endHoursAgo * HOUR_MS),
+  }
+  return intent.startHoursAgo >= 24
+    ? `Showing the last ${Math.round(intent.startHoursAgo / 24)} day(s).`
+    : `Showing the last ${Math.round(intent.startHoursAgo * 60)} minute(s).`
+}
+
+async function zoomTo(
+  intent: Extract<NlqIntent, { kind: 'zoom-to' }>,
+  ctx: IntentContext,
+): Promise<string> {
+  const region = lookupRegion(intent.region)
+  if (!region) {
+    return `I can zoom to: ${listRegions().join(', ')}.`
+  }
+  await ctx.targets.view.goTo({ center: region.center, zoom: region.zoom })
+  return `Zoomed to ${region.label}.`
+}
+
+async function handleIntent(intent: NlqIntent, ctx: IntentContext): Promise<string> {
+  switch (intent.kind) {
+    case 'clear-filters':
+      return clearFilters(ctx)
+    case 'filter-magnitude':
+      return filterByMagnitude(intent, ctx)
+    case 'filter-region':
+      return filterByRegion(intent, ctx)
+    case 'time-window':
+      return setTimeWindow(intent, ctx)
+    case 'zoom-to':
+      return zoomTo(intent, ctx)
+    default:
+      return NLQ_HELP
+  }
+}
+
 /**
  * Builds an executor that keeps session filter state across commands. The
  * live map targets are resolved at call time via `getTargets` — React
@@ -45,95 +141,15 @@ export function createNlqExecutor(
   return async (intents) => {
     const targets = getTargets()
     if (!targets) return 'The map is still loading — try again in a moment.'
-    const quakeLayer = targets.layers.find((layer) => layer.id === 'earthquakes')
-    const replies: string[] = []
-
-    for (const intent of intents) {
-      switch (intent.kind) {
-        case 'clear-filters': {
-          state.magMin = null
-          state.regionWhere = null
-          state.regionLabel = null
-          if (quakeLayer) {
-            targets.applyQuakeFilter(null)
-          }
-          const full = targets.timeSlider?.fullTimeExtent
-          if (targets.timeSlider && full?.start && full?.end) {
-            targets.timeSlider.timeExtent = { start: full.start, end: full.end }
-          }
-          replies.push('Filters cleared — showing everything in the current time window.')
-          break
-        }
-
-        case 'filter-magnitude': {
-          state.magMin = intent.min
-          if (quakeLayer) {
-            targets.applyQuakeFilter(quakeWhere(state))
-          }
-          replies.push(
-            `Showing M${intent.min}+ quakes${state.regionLabel ? ` in ${state.regionLabel}` : ''}.`,
-          )
-          break
-        }
-
-        case 'filter-region': {
-          const region = lookupRegion(intent.region)
-          if (!region) {
-            replies.push(`I don't know that region. ${NLQ_HELP}`)
-            break
-          }
-          state.regionWhere = region.where
-          state.regionLabel = region.label
-          if (quakeLayer) {
-            targets.applyQuakeFilter(quakeWhere(state))
-          }
-          replies.push(
-            `Showing quakes in ${region.label}${state.magMin !== null ? ` (M${state.magMin}+)` : ''}.`,
-          )
-          break
-        }
-
-        case 'time-window': {
-          const slider = targets.timeSlider
-          if (!slider) {
-            replies.push('The time slider is not available.')
-            break
-          }
-          const now = Date.now()
-          slider.timeExtent = {
-            start: new Date(now - intent.startHoursAgo * HOUR_MS),
-            end: new Date(now - intent.endHoursAgo * HOUR_MS),
-          }
-          const hours = intent.startHoursAgo
-          replies.push(
-            hours >= 24
-              ? `Showing the last ${Math.round(hours / 24)} day(s).`
-              : `Showing the last ${Math.round(hours * 60)} minute(s).`,
-          )
-          break
-        }
-
-        case 'zoom-to': {
-          const region = lookupRegion(intent.region)
-          if (!region) {
-            replies.push(`I can zoom to: ${listRegions().join(', ')}.`)
-            break
-          }
-          await targets.view.goTo({ center: region.center, zoom: region.zoom })
-          replies.push(`Zoomed to ${region.label}.`)
-          break
-        }
-
-        case 'unknown': {
-          replies.push(NLQ_HELP)
-          break
-        }
-
-        default:
-          break
-      }
+    const ctx: IntentContext = {
+      targets,
+      state,
+      quakeLayer: targets.layers.find((layer) => layer.id === 'earthquakes'),
     }
-
+    const replies: string[] = []
+    for (const intent of intents) {
+      replies.push(await handleIntent(intent, ctx))
+    }
     return replies.join(' ')
   }
 }

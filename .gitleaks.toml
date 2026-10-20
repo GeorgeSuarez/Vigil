@@ -1,0 +1,8 @@
+# Gitleaks configuration. Extends the default ruleset; build output is
+# excluded because minified third-party SDK bundles reliably trip the
+# generic-api-key heuristic on their own token-handling identifiers.
+[extend]
+useDefault = true
+
+[allowlist]
+paths = ['''(^|/)dist/''']

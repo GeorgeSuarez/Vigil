@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { SyntheticEvent } from 'react'
 
 export interface NlqPanelProps {
   /** Runs a command and resolves with the assistant's reply. */
@@ -35,7 +35,7 @@ export function NlqPanel({ onRun, llmActive }: NlqPanelProps) {
     )
   }
 
-  const submit = async (event: FormEvent): Promise<void> => {
+  const submit = async (event: SyntheticEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
     const q = draft.trim()
     if (!q || busy) return
@@ -45,9 +45,8 @@ export function NlqPanel({ onRun, llmActive }: NlqPanelProps) {
     try {
       const a = await onRun(q)
       setEntries((prev) => {
-        const next = [...prev]
-        next[next.length - 1] = { q, a }
-        return next
+        // Replace the busy placeholder (the last entry) with the real answer.
+        return [...prev.slice(0, -1), { q, a }]
       })
     } finally {
       setBusy(false)

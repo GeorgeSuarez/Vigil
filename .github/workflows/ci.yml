@@ -8,9 +8,15 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # Read-only token: this workflow never needs to push or comment.
+    permissions:
+      contents: read
     steps:
-      # actions/checkout@v4.4.0
+      # actions/checkout@v4.4.0 — persist-credentials: false keeps the GitHub
+      # token out of the git config in the workspace (nothing here pushes).
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
       # pnpm/action-setup@v4.4.0 — version comes from packageManager
       - uses: pnpm/action-setup@a15d269cd4658e1107c09f1fabf4cbd7bd1f308a

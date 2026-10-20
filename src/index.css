@@ -183,13 +183,10 @@ body {
 
 /* ---------- Side panel ---------- */
 
-.side-panel {
+/* Both floating panels are the same glass shell; each anchors itself below. */
+.side-panel,
+.nlq-dock {
   position: absolute;
-  inset-block-start: 16px;
-  inset-inline-end: 16px;
-  inset-block-end: 88px;
-  width: min(300px, 80vw);
-  padding: 14px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius);
@@ -197,6 +194,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.side-panel {
+  inset-block-start: 16px;
+  inset-inline-end: 16px;
+  inset-block-end: 88px;
+  width: min(300px, 80vw);
+  padding: 14px;
   z-index: 10;
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -385,7 +390,9 @@ body {
   border: 0;
 }
 
-/* Honor the OS-level reduced-motion preference. */
+/* Honor the OS-level reduced-motion preference. The `!important` flags are
+   required here: they must outrank every animation and transition declared
+   elsewhere (including the ArcGIS SDK's own), which is the whole point. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -448,19 +455,11 @@ body {
 }
 
 .nlq-dock {
-  position: absolute;
-  top: 16px;
-  left: 50%;
+  inset-block-start: 16px;
+  inset-inline-start: 50%;
   transform: translateX(-50%);
   width: min(460px, 90vw);
   padding: 12px;
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius);
-  backdrop-filter: blur(8px);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   z-index: 15;
 }
 

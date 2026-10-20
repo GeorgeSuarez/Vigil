@@ -1,0 +1,14 @@
+{
+  "ignore": ["dist/**"],
+  "rules": {
+    "find-import-file-without-extension": {
+      "disable": [
+        "find-import-file-without-extension",
+        "ast-grep:find-import-file-without-extension"
+      ]
+    },
+    "no-important": {
+      "ignorePaths": ["src/index.css"]
+    }
+  }
+}

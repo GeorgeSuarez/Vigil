@@ -49,69 +49,85 @@ const SYSTEM =
 interface ContentBlock {
   type: string
   name?: string
-  input?: Record<string, unknown>
+  /** Tool-call arguments, keyed per tool; each handler narrows its own. */
+  input?: {
+    min?: unknown
+    region?: unknown
+    hours_ago?: unknown
+  }
 }
 
-/** Sends the request and maps any tool_use blocks back to NlqIntents. */
+/** Sends the request and maps any tool_use blocks back to NlqIntents.
+ * Returns null on any failure (network, status, or unexpected shape) so the
+ * caller falls back to the offline rule-based parser. */
 export async function intentFromLlm(
   text: string,
   apiKey: string,
   model: string,
-): Promise<NlqIntent[]> {
-  const res = await fetch(ANTHROPIC_URL, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      // Opt in to browser-side calls (this app is a keyless client-side demo).
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 400,
-      system: SYSTEM,
-      tools: TOOLS,
-      // Force a tool call so the reply is always machine-interpretable.
-      tool_choice: { type: 'any' },
-      messages: [{ role: 'user', content: text }],
-    }),
-  })
-  if (!res.ok) throw new Error(`LLM request failed with status ${res.status}`)
+): Promise<NlqIntent[] | null> {
+  try {
+    const res = await fetch(ANTHROPIC_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        // Opt in to browser-side calls (this app is a keyless client-side demo).
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 400,
+        system: SYSTEM,
+        tools: TOOLS,
+        // Force a tool call so the reply is always machine-interpretable.
+        tool_choice: { type: 'any' },
+        messages: [{ role: 'user', content: text }],
+      }),
+    })
+    if (!res.ok) throw new Error(`LLM request failed with status ${res.status}`)
 
-  const data: { content?: ContentBlock[] } = await res.json()
-  const intents: NlqIntent[] = []
+    const data: { content?: ContentBlock[] } = await res.json()
+    const intents: NlqIntent[] = []
 
-  for (const block of data.content ?? []) {
-    if (block.type !== 'tool_use') continue
-    switch (block.name) {
-      case 'filter_by_magnitude': {
-        const min = Number(block.input?.min)
-        if (Number.isFinite(min)) intents.push({ kind: 'filter-magnitude', min })
-        break
-      }
-      case 'filter_by_region': {
-        if (typeof block.input?.region === 'string') {
-          intents.push({ kind: 'filter-region', region: block.input.region })
+    for (const block of data.content ?? []) {
+      if (block.type !== 'tool_use') continue
+      switch (block.name) {
+        case 'filter_by_magnitude': {
+          const min = Number(block.input?.min)
+          if (Number.isFinite(min)) intents.push({ kind: 'filter-magnitude', min })
+          break
         }
-        break
-      }
-      case 'set_time_window': {
-        const hours = Number(block.input?.hours_ago)
-        if (Number.isFinite(hours)) {
-          intents.push({ kind: 'time-window', startHoursAgo: hours, endHoursAgo: 0 })
+        case 'filter_by_region': {
+          // Arguments come from an external API, so the shape is checked at
+          // this boundary rather than trusted.
+          // pi-lens-ignore: no-runtime-typeof
+          if (typeof block.input?.region === 'string') {
+            intents.push({ kind: 'filter-region', region: block.input.region })
+          }
+          break
         }
-        break
+        case 'set_time_window': {
+          const hours = Number(block.input?.hours_ago)
+          if (Number.isFinite(hours)) {
+            intents.push({ kind: 'time-window', startHoursAgo: hours, endHoursAgo: 0 })
+          }
+          break
+        }
+        case 'clear_filters': {
+          intents.push({ kind: 'clear-filters' })
+          break
+        }
+        default:
+          break
       }
-      case 'clear_filters': {
-        intents.push({ kind: 'clear-filters' })
-        break
-      }
-      default:
-        break
     }
-  }
 
-  if (intents.length === 0) intents.push({ kind: 'unknown' })
-  return intents
+    if (intents.length === 0) intents.push({ kind: 'unknown' })
+    return intents
+  } catch {
+    // Network, auth, or shape failure — the caller falls back to the offline
+    // rule-based parser.
+    return null
+  }
 }

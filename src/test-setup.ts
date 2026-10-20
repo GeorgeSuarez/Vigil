@@ -7,32 +7,31 @@ afterEach(() => {
   cleanup()
 })
 
-// jsdom polyfills for APIs some libraries assume exist.
-if (typeof window.matchMedia !== 'function') {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: (query: string) =>
-      ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      }) as MediaQueryList,
-  })
+/** jsdom lacks browser APIs some libraries assume exist — install the
+ * minimum viable stubs, only when the real thing is missing. */
+function installPolyfills(): void {
+  if (!('matchMedia' in window)) {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) =>
+        ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList,
+    })
+  }
+
+  if (!('ResizeObserver' in globalThis)) {
+    // Only the three lifecycle methods are ever called; nothing observes.
+    const observer = () => ({ observe() {}, unobserve() {}, disconnect() {} })
+    Object.defineProperty(globalThis, 'ResizeObserver', { writable: true, value: observer })
+  }
 }
 
-if (typeof globalThis.ResizeObserver !== 'function') {
-  class ResizeObserverStub {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-  Object.defineProperty(globalThis, 'ResizeObserver', {
-    writable: true,
-    value: ResizeObserverStub,
-  })
-}
+installPolyfills()

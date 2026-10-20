@@ -50,7 +50,7 @@ export function MapContainer({
     // DOM survives StrictMode's double-mount and later reconciliations.
     const host = document.createElement('div')
     host.className = 'time-slider-host'
-    strip.appendChild(host)
+    strip.append(host)
     const city = createCityView({
       container,
       basemap,
