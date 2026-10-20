@@ -5,6 +5,7 @@ import Legend from '@arcgis/core/widgets/Legend'
 import ScaleBar from '@arcgis/core/widgets/ScaleBar'
 import Search from '@arcgis/core/widgets/Search'
 import TimeSlider from '@arcgis/core/widgets/TimeSlider'
+import FeatureFilter from '@arcgis/core/layers/support/FeatureFilter'
 import { configureArcgisSdk } from './arcgis'
 import { buildFeatureLayers, type AppLayer } from './layers'
 
@@ -37,6 +38,8 @@ export interface CityView {
   layers: readonly AppLayer[]
   /** Recomputes view-extent stats; call after layer visibility changes. */
   refreshExtentStats: () => void
+  /** Applies a SQL where-clause to the quakes layer (render + queries). */
+  applyQuakeFilter: (where: string | null) => void
   /** Null when no time slider host was provided. */
   timeSlider: TimeSlider | null
 }
@@ -104,7 +107,14 @@ export function createCityView({
       .filter((layer) => layer.visible)
       .map((layer) =>
         layer
-          .queryFeatureCount({ geometry: extent, timeExtent: view.timeExtent })
+          // Merge the layer's runtime expression explicitly: the engine
+          // bypasses layer-level definitionExpression when the query object
+          // carries geometry/timeExtent args (pinned by integration tests).
+          .queryFeatureCount({
+            geometry: extent,
+            timeExtent: view.timeExtent,
+            where: layer.definitionExpression ?? '1=1',
+          })
           .then((count) => {
             counts[layer.id] = count
           })
@@ -125,6 +135,30 @@ export function createCityView({
     })
   })
 
+  const quakeLayer = layers.find((layer) => layer.id === 'earthquakes')
+
+  // --- Quake filtering --------------------------------------------------------
+  // The engine honors layer-level definitionExpression on un-argued queries,
+  // but bypasses it when the query object carries geometry/timeExtent (see the
+  // integration tests), so the render side is driven explicitly via
+  // layerView.filter, which also handles clustered layers.
+  const quakeLayerViewPromise = quakeLayer ? view.whenLayerView(quakeLayer) : null
+
+  const applyQuakeFilter = (where: string | null): void => {
+    if (!quakeLayer) return
+    quakeLayer.definitionExpression = where
+    void quakeLayerViewPromise?.then((layerView) => {
+      if (quakeLayer.destroyed) return
+      layerView.filter = where ? new FeatureFilter({ where }) : null
+      // Force the clustered store to re-index with the new filter (the engine
+      // otherwise keeps serving the pre-filter cluster state).
+      const reduction = quakeLayer.featureReduction
+      quakeLayer.featureReduction = null
+      quakeLayer.featureReduction = reduction
+    })
+    refreshExtentStats()
+  }
+
   // --- Time slider -------------------------------------------------------------
   // The live USGS quakes layer declares timeInfo (startField: 'time', epoch
   // ms). The slider's full range comes from the layer's advertised time extent
@@ -132,7 +166,6 @@ export function createCityView({
   // ordered client-side queries. With `view` set, the widget updates
   // view.timeExtent automatically, which filters time-aware layers.
   let timeSlider: TimeSlider | null = null
-  const quakeLayer = layers.find((layer) => layer.id === 'earthquakes')
 
   if (timeSliderHost && quakeLayer) {
     timeSlider = new TimeSlider({ container: timeSliderHost, mode: 'time-window', view })
@@ -214,5 +247,5 @@ export function createCityView({
   view.ui.add(new Legend({ view }), 'bottom-left')
   view.ui.add(new ScaleBar({ view, unit: 'dual' }), 'bottom-left')
 
-  return { view, layers, refreshExtentStats, timeSlider }
+  return { view, layers, refreshExtentStats, applyQuakeFilter, timeSlider }
 }

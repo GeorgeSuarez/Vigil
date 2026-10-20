@@ -13,6 +13,8 @@ export interface MapContainerProps {
   visibility: Record<LayerId, boolean>
   onStatusChange: (status: ViewStatus) => void
   onExtentStats: (stats: ExtentStats) => void
+  /** Hands the live CityView (view/layers/slider) up to App once created. */
+  onReady?: (city: CityView) => void
   initialCenter?: [number, number]
   initialZoom?: number
 }
@@ -28,6 +30,7 @@ export function MapContainer({
   visibility,
   onStatusChange,
   onExtentStats,
+  onReady,
   initialCenter,
   initialZoom,
 }: MapContainerProps) {
@@ -56,6 +59,7 @@ export function MapContainer({
       timeSliderHost: host,
     })
     viewRef.current = city
+    onReady?.(city)
     setLayers(city.layers)
     return () => {
       city.timeSlider?.destroy()
@@ -88,7 +92,12 @@ export function MapContainer({
 
   return (
     <div className="map-area">
-      <div ref={containerRef} className="map-root" />
+      <div
+        ref={containerRef}
+        className="map-root"
+        role="application"
+        aria-label="Interactive world map showing recent earthquakes and hurricanes"
+      />
       {/* Empty to React — the widget host is created imperatively in the effect. */}
       <div ref={timeStripRef} className="time-strip" />
     </div>

@@ -14,6 +14,8 @@ A polished, deployable mapping app built with the **ArcGIS Maps SDK for JavaScri
 - 🔗 **Shareable deep links** — basemap, extent, and layer visibility mirror into the URL hash and restore on load (`#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,hurricanes`)
 - 🔢 **Live view-extent stats** — per-layer feature counts in the status bar, recomputed via `queryFeatureCount` whenever the map stops moving or a layer toggles
 - ⏱️ **Time slider** — dual-thumb temporal filter over the quakes layer (SDK `TimeSlider` + `layer.timeInfo`); the map and the in-view counts both react to the active window. The range is derived from the layer's own time extent at load, not hardcoded.
+- ♿ **Accessibility** — landmarks with accessible names, a screen-reader announcer (ARIA live region) narrating settled map state, visible focus states, and `prefers-reduced-motion` support; every SDK-free component passes an axe audit in the unit suite.
+- 💬 **Ask the map** — natural-language commands ("M5 in Alaska", "last 3 days", "zoom to Japan", "clear filters") drive real map operations: layer definition expressions, animated fly-to, and the temporal window. Runs keyless via a pure offline parser; configure `VITE_ANTHROPIC_API_KEY` to route through Claude tool-calls instead.
 
 ## Quick start
 
@@ -47,6 +49,7 @@ Open http://localhost:5173. The app runs **without any API key** — it uses the
 | `pnpm typecheck` | `tsc -b` |
 | `pnpm lint` | oxlint |
 | `pnpm format` | oxfmt write |
+| `pnpm format:check` | oxfmt check (no writes) |
 
 ## Architecture
 
