@@ -7,7 +7,14 @@ import Search from '@arcgis/core/widgets/Search'
 import TimeSlider from '@arcgis/core/widgets/TimeSlider'
 import FeatureFilter from '@arcgis/core/layers/support/FeatureFilter'
 import { configureArcgisSdk } from './arcgis'
-import { buildFeatureLayers, type AppLayer } from './layers'
+import {
+  buildFeatureLayers,
+  startIssTracking,
+  LAYER_DESCRIPTORS,
+  type AppLayer,
+  type FeatureLayer,
+  type GeoJSONLayer,
+} from './layers'
 
 /** Snapshot of view state surfaced in the status bar. */
 export interface ViewStatus {
@@ -106,7 +113,11 @@ export function createCityView({
     const run = ++statsRun
     const counts: Record<string, number> = {}
     const queries = layers
-      .filter((layer) => layer.visible)
+      // GraphicsLayer (ISS) is a live marker, not a data service — it never
+      // contributes counts; the pipeline is typed for queryable layers only.
+      .filter(
+        (layer): layer is FeatureLayer | GeoJSONLayer => layer.visible && layer.type !== 'graphics',
+      )
       .map((layer) =>
         layer
           // Merge the layer's runtime expression explicitly: the engine
@@ -137,7 +148,17 @@ export function createCityView({
     })
   })
 
-  const quakeLayer = layers.find((layer) => layer.id === 'earthquakes')
+  const quakeLayer = layers.find(
+    (layer): layer is FeatureLayer | GeoJSONLayer =>
+      layer.type !== 'graphics' && layer.id === 'earthquakes',
+  )
+
+  // Kick off the live ISS poll; it self-cleans when the layer is destroyed.
+  for (const layer of layers) {
+    if (layer.type !== 'graphics') continue
+    const feedUrl = LAYER_DESCRIPTORS.find((d) => d.id === layer.id)?.url
+    if (feedUrl) startIssTracking(layer, feedUrl)
+  }
 
   // --- Quake filtering --------------------------------------------------------
   // The engine honors layer-level definitionExpression on un-argued queries,

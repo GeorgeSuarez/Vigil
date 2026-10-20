@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildEonetEventPopupHtml,
   buildFeatureLayers,
   buildHurricanePopupHtml,
+  buildIssPopupHtml,
   buildQuakePopupHtml,
+  eonetEventPageUrl,
+  type EonetEventAttributes,
+  type IssAttributes,
   LAYER_DESCRIPTORS,
+  type FeatureLayer,
+  type GeoJSONLayer,
   type QuakeAttributes,
 } from './layers'
 
@@ -20,14 +27,90 @@ describe('LAYER_DESCRIPTORS', () => {
 describe('buildFeatureLayers', () => {
   it('builds the live USGS feed layer with epoch timeInfo, and a service layer without', () => {
     const layers = buildFeatureLayers()
-    const quakes = layers.find((l) => l.id === 'earthquakes')
-    const storms = layers.find((l) => l.id === 'hurricanes')
+    const quakes = layers.find(
+      (l): l is FeatureLayer | GeoJSONLayer => l.type !== 'graphics' && l.id === 'earthquakes',
+    )
+    const storms = layers.find(
+      (l): l is FeatureLayer | GeoJSONLayer => l.type !== 'graphics' && l.id === 'hurricanes',
+    )
     expect(quakes?.type).toBe('geojson')
     expect(quakes?.timeInfo?.startField).toBe('time')
     expect(storms?.type).toBe('feature')
     // Service layers keep timeInfo null until the service publishes one at load;
     // the Hurricanes sample service does not.
     expect(storms?.timeInfo).toBeNull()
+  })
+
+  it('builds the EONET layer pinned to points and an empty ISS graphics layer', () => {
+    const layers = buildFeatureLayers()
+    const events = layers.find((l): l is GeoJSONLayer => l.type === 'geojson' && l.id === 'eonet')
+    // The feed mixes storm-track LineStrings with points; the layer pins to
+    // points so track geometries are ignored.
+    expect(events?.geometryType).toBe('point')
+    const iss = layers.find((l) => l.type === 'graphics')
+    expect(iss?.id).toBe('iss')
+  })
+})
+
+describe('eonetEventPageUrl', () => {
+  it('strips the /geojson suffix to reach the human event page', () => {
+    expect(eonetEventPageUrl('https://eonet.gsfc.nasa.gov/api/v3/events/EONET_1/geojson')).toBe(
+      'https://eonet.gsfc.nasa.gov/api/v3/events/EONET_1',
+    )
+    expect(eonetEventPageUrl(null)).toBeNull()
+  })
+})
+
+describe('buildEonetEventPopupHtml', () => {
+  const attrs: EonetEventAttributes = {
+    title: 'Wildfire - Idaho, United States',
+    description: null,
+    link: 'https://eonet.gsfc.nasa.gov/api/v3/events/EONET_6001/geojson',
+    date: '2026-10-18T18:00:00Z',
+    magnitudeValue: null,
+    magnitudeUnit: null,
+    categories: [{ id: 'wildfires', title: 'Wildfires' }],
+    sources: [{ id: 'NIFS', url: 'https://nifs.example.com/fire/6001' }],
+  }
+
+  it('renders category, source link, and the EONET event page', () => {
+    const html = buildEonetEventPopupHtml(attrs)
+    expect(html).toContain('Wildfires')
+    expect(html).toContain('UTC')
+    expect(html).toContain('nasa.gov/api/v3/events/EONET_6001"')
+    expect(html).toContain('href="https://nifs.example.com/fire/6001"')
+  })
+
+  it('omits the magnitude row and links when absent', () => {
+    const html = buildEonetEventPopupHtml({
+      ...attrs,
+      magnitudeValue: 35,
+      magnitudeUnit: 'kts',
+      link: null,
+      sources: null,
+    })
+    expect(html).toContain('35 kts')
+    expect(html).not.toContain('event page')
+    // Magnitude adds a row; dropping both links removes two, so category +
+    // updated + magnitude remain.
+    expect((html.match(/<div>/g) ?? []).length).toBe(3)
+  })
+})
+
+describe('buildIssPopupHtml', () => {
+  it('renders altitude, velocity, and sun state', () => {
+    const attrs: IssAttributes = {
+      name: 'ISS (ZARYA)',
+      altitude: 419.077,
+      velocity: 27582.597,
+      updated: 1_792_533_768_000,
+      visibility: 'eclipsed',
+    }
+    const html = buildIssPopupHtml(attrs)
+    expect(html).toContain('419 km')
+    expect(html).toContain('27583 km/h')
+    expect(html).toContain('UTC')
+    expect(html).toContain('no (eclipsed)')
   })
 })
 

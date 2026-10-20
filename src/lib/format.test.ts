@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatDegrees, formatEpoch, formatNullable, formatNumber, formatScale } from './format'
+import {
+  formatDegrees,
+  formatEpoch,
+  formatNullable,
+  formatNumber,
+  formatScale,
+  withCountLabel,
+} from './format'
 
 describe('formatNumber', () => {
   it('adds thousands separators', () => {
@@ -66,5 +73,18 @@ describe('formatEpoch', () => {
   it('falls back for missing values', () => {
     expect(formatEpoch(null)).toBe('—')
     expect(formatEpoch(Number.NaN)).toBe('—')
+  })
+})
+
+describe('withCountLabel', () => {
+  it('singularizes plural labels at a count of one', () => {
+    expect(withCountLabel(1, 'quakes')).toBe('quake')
+    expect(withCountLabel(1, 'events')).toBe('event')
+  })
+
+  it('keeps plurals at other counts and non-plural labels', () => {
+    expect(withCountLabel(2, 'quakes')).toBe('quakes')
+    expect(withCountLabel(0, 'events')).toBe('events')
+    expect(withCountLabel(1, 'ISS')).toBe('ISS')
   })
 })

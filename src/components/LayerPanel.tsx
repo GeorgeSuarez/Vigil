@@ -34,8 +34,8 @@ export function LayerPanel({ layers, visibility, onToggle }: LayerPanelProps) {
       </ul>
 
       <p className="side-panel-foot">
-        Data: live USGS earthquake feed + Esri sample services · popups, clustering, and the time
-        slider are configured in code.
+        Data: live USGS earthquake feed, NASA EONET events, the live ISS position, and Esri sample
+        services · popups, clustering, and the time slider are configured in code.
       </p>
     </aside>
   )

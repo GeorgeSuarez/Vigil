@@ -1,5 +1,5 @@
 import type { ViewStatus } from '../lib/createCityView'
-import { formatDegrees, formatNumber, formatScale } from '../lib/format'
+import { formatDegrees, formatNumber, formatScale, withCountLabel } from '../lib/format'
 
 /** One per visible layer: a compact label plus its in-view feature count. */
 export interface ExtentItem {
@@ -44,7 +44,7 @@ export function StatusBar({
             {extentItems.map((item, index) => (
               <strong key={item.label}>
                 {index > 0 && ' · '}
-                {formatNumber(item.count)} {item.label}
+                {formatNumber(item.count)} {withCountLabel(item.count, item.label)}
               </strong>
             ))}
           </span>

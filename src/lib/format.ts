@@ -49,3 +49,12 @@ export function formatEpoch(ms: number | null | undefined): string {
   if (ms === null || ms === undefined || !Number.isFinite(ms)) return '—'
   return `${EPOCH_FORMAT.format(new Date(ms))} UTC`
 }
+
+/** Labels in the layer descriptors are plural; the status bar shows counts,
+ * so a lone feature reads “1 quake”, not “1 quakes”. */
+export function withCountLabel(count: number, pluralLabel: string): string {
+  if (count === 1 && pluralLabel.endsWith('s') && pluralLabel.length > 1) {
+    return pluralLabel.slice(0, -1)
+  }
+  return pluralLabel
+}
