@@ -15,20 +15,30 @@ export interface ViewStatus {
   lon: number | null
 }
 
+/** Feature counts per layer id, computed against the current view extent. */
+export type ExtentStats = Record<string, number>
+
 export interface CreateCityViewOptions {
   container: HTMLDivElement
   basemap: string
   apiKey: string
   onStatusChange: (status: ViewStatus) => void
+  onExtentStats: (stats: ExtentStats) => void
+  /** Initial center as [lon, lat]; falls back to the contiguous US. */
+  initialCenter?: [number, number]
+  initialZoom?: number
 }
 
 export interface CityView {
   view: MapView
   layers: readonly FeatureLayer[]
+  /** Recomputes view-extent stats; call after layer visibility changes. */
+  refreshExtentStats: () => void
 }
 
 /** Contiguous US center used for the initial extent. */
 const CONUS_CENTER: [number, number] = [-98.5, 39.8]
+const DEFAULT_ZOOM = 4
 
 /**
  * Framework-agnostic factory that wires the map, demo layers, and widgets.
@@ -40,6 +50,9 @@ export function createCityView({
   basemap,
   apiKey,
   onStatusChange,
+  onExtentStats,
+  initialCenter,
+  initialZoom,
 }: CreateCityViewOptions): CityView {
   configureArcgisSdk(apiKey)
 
@@ -48,8 +61,8 @@ export function createCityView({
   const view = new MapView({
     container,
     map,
-    center: CONUS_CENTER,
-    zoom: 4,
+    center: initialCenter ?? CONUS_CENTER,
+    zoom: initialZoom ?? DEFAULT_ZOOM,
     popupEnabled: true,
   })
 
@@ -71,6 +84,40 @@ export function createCityView({
   view.watch('scale', notify)
   view.watch('center', notify)
 
+  // --- View-extent feature counts -------------------------------------------
+  // Each trigger bumps a token; only the latest run's results are delivered,
+  // so responses from aborted pans can never overwrite fresh ones.
+  let statsRun = 0
+
+  const refreshExtentStats = (): void => {
+    const extent = view.extent
+    if (!extent) return
+    const run = ++statsRun
+    const counts: Record<string, number> = {}
+    const queries = layers
+      .filter((layer) => layer.visible)
+      .map((layer) =>
+        layer
+          .queryFeatureCount({ geometry: extent })
+          .then((count) => {
+            counts[layer.id] = count
+          })
+          .catch(() => {
+            // Service hiccups leave the layer out of this round of stats.
+          }),
+      )
+    void Promise.all(queries).then(() => {
+      if (run === statsRun) onExtentStats(counts)
+    })
+  }
+
+  view.when(() => {
+    refreshExtentStats()
+    view.watch('stationary', (stationary) => {
+      if (stationary) refreshExtentStats()
+    })
+  })
+
   view.ui.add(new Home({ view }), 'top-left')
 
   // The Search widget calls the ArcGIS World Geocoder, which requires an API key.
@@ -81,5 +128,5 @@ export function createCityView({
   view.ui.add(new Legend({ view }), 'bottom-left')
   view.ui.add(new ScaleBar({ view, unit: 'dual' }), 'bottom-left')
 
-  return { view, layers }
+  return { view, layers, refreshExtentStats }
 }

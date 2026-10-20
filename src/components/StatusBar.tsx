@@ -1,12 +1,19 @@
 import type { ViewStatus } from '../lib/createCityView'
-import { formatDegrees, formatScale } from '../lib/format'
+import { formatDegrees, formatNumber, formatScale } from '../lib/format'
+
+/** One per visible layer: a compact label plus its in-view feature count. */
+export interface ExtentItem {
+  label: string
+  count: number
+}
 
 export interface StatusBarProps {
   status: ViewStatus
+  extentItems: readonly ExtentItem[]
 }
 
-/** Bottom strip mirroring the live view state (center, zoom, scale). */
-export function StatusBar({ status }: StatusBarProps) {
+/** Bottom strip mirroring the live view state (center, zoom, scale, counts). */
+export function StatusBar({ status, extentItems }: StatusBarProps) {
   return (
     <footer className="status-bar" aria-label="Map view status">
       <span className="status-item">
@@ -21,6 +28,17 @@ export function StatusBar({ status }: StatusBarProps) {
       <span className="status-item">
         Scale <strong>{formatScale(status.scale)}</strong>
       </span>
+      {extentItems.length > 0 && (
+        <span className="status-item">
+          In view{' '}
+          {extentItems.map((item, index) => (
+            <strong key={item.label}>
+              {index > 0 && ' · '}
+              {formatNumber(item.count)} {item.label}
+            </strong>
+          ))}
+        </span>
+      )}
     </footer>
   )
 }

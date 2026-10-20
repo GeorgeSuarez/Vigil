@@ -11,7 +11,7 @@ describe('StatusBar', () => {
       lat: 37.4419,
       lon: -122.138,
     }
-    render(<StatusBar status={status} />)
+    render(<StatusBar status={status} extentItems={[]} />)
     expect(screen.getByText(/37.4419° N/)).toBeVisible()
     expect(screen.getByText(/122.1380° W/)).toBeVisible()
     expect(screen.getByText('Zoom')).toBeVisible()
@@ -19,10 +19,27 @@ describe('StatusBar', () => {
     expect(screen.getByText('1 : 2.3M')).toBeVisible()
   })
 
-  it('renders em dashes before the view reports state', () => {
+  it('renders per-layer in-view counts', () => {
+    const status: ViewStatus = { zoom: 4, scale: 1, lat: 0, lon: 0 }
+    render(
+      <StatusBar
+        status={status}
+        extentItems={[
+          { label: 'quakes', count: 412 },
+          { label: 'storms', count: 89 },
+        ]}
+      />,
+    )
+    expect(screen.getByText('In view')).toBeVisible()
+    expect(screen.getByText(/412 quakes/)).toBeVisible()
+    expect(screen.getByText(/· 89 storms/)).toBeVisible()
+  })
+
+  it('omits the counts section before the first query resolves', () => {
     const status: ViewStatus = { zoom: null, scale: null, lat: null, lon: null }
-    render(<StatusBar status={status} />)
+    render(<StatusBar status={status} extentItems={[]} />)
     expect(screen.getByText('—, —')).toBeVisible()
     expect(screen.getAllByText('—').length).toBe(2)
+    expect(screen.queryByText('In view')).toBeNull()
   })
 })

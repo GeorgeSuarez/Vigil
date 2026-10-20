@@ -8,6 +8,8 @@ export type { FeatureLayer }
 export interface LayerDescriptor {
   id: string
   title: string
+  /** Compact label for tight UI contexts (e.g. the status bar). */
+  shortTitle: string
   description: string
   /** Public ArcGIS REST Feature Service endpoint (keyless access). */
   url: string
@@ -25,6 +27,7 @@ export const LAYER_DESCRIPTORS: readonly LayerDescriptor[] = [
   {
     id: 'earthquakes',
     title: 'Earthquakes, 1970–2018',
+    shortTitle: 'quakes',
     description: 'M5+ global events, clustered by proximity.',
     url: 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Earthquakes_Since1970/MapServer/0',
     defaultVisible: true,
@@ -32,6 +35,7 @@ export const LAYER_DESCRIPTORS: readonly LayerDescriptor[] = [
   {
     id: 'hurricanes',
     title: 'Atlantic Hurricanes, 2000',
+    shortTitle: 'storms',
     description: 'Storm fixes with pressure and wind speed.',
     url: 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Hurricanes/MapServer/0',
     defaultVisible: false,

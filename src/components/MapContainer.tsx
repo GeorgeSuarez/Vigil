@@ -1,6 +1,11 @@
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
 import { useEffect, useRef, useState } from 'react'
-import { createCityView, type CityView, type ViewStatus } from '../lib/createCityView'
+import {
+  createCityView,
+  type CityView,
+  type ExtentStats,
+  type ViewStatus,
+} from '../lib/createCityView'
 import type { LayerId } from '../lib/layers'
 
 export interface MapContainerProps {
@@ -8,6 +13,9 @@ export interface MapContainerProps {
   apiKey: string
   visibility: Record<LayerId, boolean>
   onStatusChange: (status: ViewStatus) => void
+  onExtentStats: (stats: ExtentStats) => void
+  initialCenter?: [number, number]
+  initialZoom?: number
 }
 
 /**
@@ -15,7 +23,15 @@ export interface MapContainerProps {
  * on unmount, which keeps React StrictMode's double-effect safe); props are
  * applied imperatively so they never recreate the map.
  */
-export function MapContainer({ basemap, apiKey, visibility, onStatusChange }: MapContainerProps) {
+export function MapContainer({
+  basemap,
+  apiKey,
+  visibility,
+  onStatusChange,
+  onExtentStats,
+  initialCenter,
+  initialZoom,
+}: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<CityView | null>(null)
   const [layers, setLayers] = useState<readonly FeatureLayer[]>([])
@@ -23,7 +39,15 @@ export function MapContainer({ basemap, apiKey, visibility, onStatusChange }: Ma
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const city = createCityView({ container, basemap, apiKey, onStatusChange })
+    const city = createCityView({
+      container,
+      basemap,
+      apiKey,
+      onStatusChange,
+      onExtentStats,
+      initialCenter,
+      initialZoom,
+    })
     viewRef.current = city
     setLayers(city.layers)
     return () => {
@@ -49,6 +73,8 @@ export function MapContainer({ basemap, apiKey, visibility, onStatusChange }: Ma
         // oxlint-disable-next-line react/immutability
         layer.visible = on
     }
+    // Counts only cover visible layers, so refresh after toggling.
+    viewRef.current?.refreshExtentStats()
   }, [layers, visibility])
 
   return <div ref={containerRef} className="map-root" />

@@ -11,6 +11,8 @@ A polished, deployable mapping app built with the **ArcGIS Maps SDK for JavaScri
 - 📊 Live status bar — map center, zoom, scale — driven by SDK `watch` handlers
 - 🌓 Dark, glassy UI with the SDK's dark theme and Calcite dark mode
 - ♻️ View lifecycle done right: created once on mount, destroyed on unmount (StrictMode-safe)
+- 🔗 **Shareable deep links** — basemap, extent, and layer visibility mirror into the URL hash and restore on load (`#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,hurricanes`)
+- 🔢 **Live view-extent stats** — per-layer feature counts in the status bar, recomputed via `queryFeatureCount` whenever the map stops moving or a layer toggles
 
 ## Quick start
 
