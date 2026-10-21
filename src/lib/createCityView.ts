@@ -1,5 +1,6 @@
 import EsriMap from '@arcgis/core/Map'
 import MapView from '@arcgis/core/views/MapView'
+import Point from '@arcgis/core/geometry/Point'
 import Home from '@arcgis/core/widgets/Home'
 import Legend from '@arcgis/core/widgets/Legend'
 import ScaleBar from '@arcgis/core/widgets/ScaleBar'
@@ -15,6 +16,7 @@ import {
   type AppLayer,
   type FeatureLayer,
   type GeoJSONLayer,
+  type GraphicsLayer,
 } from './layers'
 
 /** Snapshot of view state surfaced in the status bar. */
@@ -39,6 +41,8 @@ export interface CreateCityViewOptions {
   initialZoom?: number
   /** Host element for the TimeSlider; omitted when the UI has no time strip. */
   timeSliderHost?: HTMLDivElement | null
+  /** Fires once the first ISS position has landed. */
+  onIssFix?: () => void
 }
 
 export interface CityView {
@@ -50,6 +54,9 @@ export interface CityView {
   applyQuakeFilter: (where: string | null) => void
   /** Releases the temporal filter: resets the slider to the full extent. */
   resetTimeWindow: () => void
+  /** Flies the view to the station's latest polled position. Returns false
+   * when no fix has arrived yet (nothing to fly to). */
+  locateIss: () => boolean
   /** Null when no time slider host was provided. */
   timeSlider: TimeSlider | null
 }
@@ -57,6 +64,8 @@ export interface CityView {
 /** Contiguous US center used for the initial extent. */
 const CONUS_CENTER: [number, number] = [-98.5, 39.8]
 const DEFAULT_ZOOM = 4
+/** Close enough to see the station against its ground track. */
+const ISS_FOCUS_ZOOM = 6
 
 /** Layers that are data services — the stats/query pipeline — versus the
  * graphics layer, which is render-only (the live ISS marker). */
@@ -291,6 +300,7 @@ export function createCityView({
   initialCenter,
   initialZoom,
   timeSliderHost,
+  onIssFix,
 }: CreateCityViewOptions): CityView {
   configureArcgisSdk(apiKey)
 
@@ -311,10 +321,26 @@ export function createCityView({
   )
 
   // Kick off the live ISS poll; it self-cleans when the layer is destroyed.
+  const issLayer = layers.find(
+    (layer): layer is GraphicsLayer => layer.type === 'graphics' && layer.id === 'iss',
+  )
   for (const layer of layers) {
     if (layer.type !== 'graphics') continue
     const feedUrl = LAYER_DESCRIPTORS.find((d) => d.id === layer.id)?.url
-    if (feedUrl) startIssTracking(layer, feedUrl)
+    if (feedUrl) startIssTracking(layer, feedUrl, onIssFix)
+  }
+
+  // Flies to the station's current position. Returns false before the first
+  // poll, so the caller can leave its affordance disabled until there is
+  // somewhere to fly to.
+  const locateIss = (): boolean => {
+    const geometry = issLayer?.graphics.getItemAt(0)?.geometry
+    // The marker is always a Point; the SDK types graphic geometry as a union.
+    if (!(geometry instanceof Point)) return false
+    void view.goTo({ center: geometry, zoom: ISS_FOCUS_ZOOM }).catch(() => {
+      // View destroyed mid-flight (StrictMode remount) — nothing to do.
+    })
+    return true
   }
 
   const applyQuakeFilter = startQuakeFiltering(view, quakeLayer, refreshExtentStats)
@@ -343,5 +369,13 @@ export function createCityView({
     timeSlider.timeExtent = { start: full.start, end: full.end }
   }
 
-  return { view, layers, refreshExtentStats, applyQuakeFilter, resetTimeWindow, timeSlider }
+  return {
+    view,
+    layers,
+    refreshExtentStats,
+    applyQuakeFilter,
+    resetTimeWindow,
+    locateIss,
+    timeSlider,
+  }
 }

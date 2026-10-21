@@ -289,9 +289,12 @@ function buildIssLayer(descriptor: LayerDescriptor): GraphicsLayer {
 
 /** Polls the wheretheiss.at feed and drives the single ISS graphic. Stops
  * itself once the layer is destroyed with the rest of the view; poll errors
- * (network hiccups) are expected and simply retry on the next tick. */
-export function startIssTracking(layer: GraphicsLayer, feedUrl: string): void {
+ * (network hiccups) are expected and simply retry on the next tick.
+ * `onFix` fires once the first position lands, so the UI can enable a
+ * locate affordance only when there is somewhere to fly to. */
+export function startIssTracking(layer: GraphicsLayer, feedUrl: string, onFix?: () => void): void {
   let graphic: Graphic | null = null
+  let notified = false
   const update = async (): Promise<void> => {
     try {
       const res = await fetch(feedUrl)
@@ -323,6 +326,10 @@ export function startIssTracking(layer: GraphicsLayer, feedUrl: string): void {
           popupTemplate: issPopupTemplate,
         })
         layer.add(graphic)
+      }
+      if (!notified) {
+        notified = true
+        onFix?.()
       }
     } catch {
       // Network hiccup — retried on the next tick.

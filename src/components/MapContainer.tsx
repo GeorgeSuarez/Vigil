@@ -17,6 +17,8 @@ export interface MapContainerProps {
   onReady?: (city: CityView) => void
   /** Whether the time slider strip is shown; the strip div itself stays mounted. */
   timeStripOpen: boolean
+  /** Fires once the first ISS position has landed. */
+  onIssFix?: () => void
   initialCenter?: [number, number]
   initialZoom?: number
 }
@@ -34,6 +36,7 @@ export function MapContainer({
   onExtentStats,
   onReady,
   timeStripOpen,
+  onIssFix,
   initialCenter,
   initialZoom,
 }: MapContainerProps) {
@@ -60,6 +63,7 @@ export function MapContainer({
       initialCenter,
       initialZoom,
       timeSliderHost: host,
+      onIssFix,
     })
     viewRef.current = city
     onReady?.(city)

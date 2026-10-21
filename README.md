@@ -8,7 +8,7 @@ A polished, deployable mapping app built with the **ArcGIS Maps SDK for JavaScri
 - 🧩 **Calcite Design System** web components (`calcite-switch`, `calcite-select`, `calcite-chip`) used natively from React 19
 - 📡 **Live USGS earthquake feed** — the past 7 days worldwide as a `GeoJSONLayer`: clustered by magnitude, auto-refreshing every 2 min, with popup links to USGS event pages; plus a static Atlantic-hurricanes sample layer. Both keyless, with custom popup templates
 - 🔥 **NASA EONET natural events** — open wildfires, severe storms, and sea-and-lake ice from the last 30 days, color-coded by category via a renderer expression. Keyless.
-- 🛰️ **Live ISS position** — the space station's real-time spot, polled every 5 s from wheretheiss.at and driven through a self-cleaning `GraphicsLayer` with an altitude/velocity popup. Keyless.
+- 🛰️ **Live ISS position** — the space station's real-time spot, polled every 5 s from wheretheiss.at and driven through a self-cleaning `GraphicsLayer` with an altitude/velocity popup. A target button on the layer row flies the map to it (the marker can be anywhere on the globe, so enabling the layer alone is not enough to find it). Keyless.
 - 🔎 Search (geocoding) widget enabled when an API key is configured
 - 📊 Live status bar — map center, zoom, scale — driven by SDK `watch` handlers
 - 🌓 Dark, glassy UI with the SDK's dark theme and Calcite dark mode

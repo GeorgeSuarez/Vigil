@@ -10,6 +10,8 @@
   --accent: oklch(75.4% 0.139 232.7);
   --accent-hover: color-mix(in oklch, var(--accent), white 20%);
   --radius: 12px;
+  /* Height of the time-slider band; the side panel clears it. */
+  --time-strip-block: 152px;
 
   /* Root-level reset rules (good-css). */
   interpolate-size: allow-keywords;
@@ -115,7 +117,10 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 64px;
+  /* One token, shared with .side-panel's clearance below: the strip's height
+     is content-driven by the SDK widget, so the two must agree. */
+  block-size: var(--time-strip-block);
+  flex: none;
   padding: 10px 16px;
   background: var(--surface);
   border-block-start: 1px solid var(--surface-border);
@@ -199,13 +204,20 @@ body {
 .side-panel {
   inset-block-start: 16px;
   inset-inline-end: 16px;
-  inset-block-end: 88px;
+  /* Sits above the map, clearing the time strip when it is showing. */
+  inset-block-end: 16px;
   width: min(300px, 80vw);
   padding: 14px;
   z-index: 10;
   overflow-y: auto;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
+}
+
+/* The strip is a sibling band under the map, so reserve its height — without
+   this the panel's last rows sit underneath it (and cannot be clicked). */
+.app-main:has(.time-strip:not([hidden])) .side-panel {
+  inset-block-end: calc(var(--time-strip-block) + 16px);
 }
 
 .side-panel-title {
@@ -254,6 +266,62 @@ body {
 .layer-desc {
   font-size: 11.5px;
   color: var(--text-muted);
+}
+
+.layer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+/* Locate action on the ISS row — a thin target ring, with a 44px hit area. */
+.layer-locate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.layer-locate::after {
+  content: '';
+  position: absolute;
+  inset: min(0px, (100% - 44px) / 2);
+}
+
+.layer-locate:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .layer-locate:not(:disabled):hover {
+    color: var(--accent);
+  }
+}
+
+.layer-locate:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .layer-locate {
+    transition:
+      transform 160ms ease-out,
+      color 160ms ease-out;
+  }
+}
+
+.layer-locate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .side-panel-foot {
@@ -552,5 +620,10 @@ body {
     inset-block-end: calc(12px + env(safe-area-inset-bottom, 0px));
     width: auto;
     max-height: 42vh;
+  }
+
+  /* Same clearance when the sheet and the strip are both open. */
+  .app-main:has(.time-strip:not([hidden])) .side-panel {
+    inset-block-end: calc(var(--time-strip-block) + 12px + env(safe-area-inset-bottom, 0px));
   }
 }

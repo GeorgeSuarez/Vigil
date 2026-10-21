@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { LayerPanel } from './LayerPanel'
 import { LAYER_DESCRIPTORS } from '../lib/layers'
@@ -25,5 +25,45 @@ describe('LayerPanel', () => {
     )
     expect(checked).not.toBeNull()
     expect(unchecked).not.toBeNull()
+  })
+})
+
+describe('LayerPanel ISS locate action', () => {
+  const locate = (props: { issLocatable?: boolean } = {}) =>
+    render(
+      <LayerPanel
+        layers={LAYER_DESCRIPTORS}
+        visibility={{}}
+        onToggle={vi.fn()}
+        onLocateIss={vi.fn()}
+        {...props}
+      />,
+    )
+
+  it('omits the action when no handler is wired', () => {
+    setup({})
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('disables the action until a position has arrived', () => {
+    locate({ issLocatable: false })
+    expect(screen.getByRole('button', { name: /live ISS position/i })).toBeDisabled()
+  })
+
+  it('fires the handler once a position is available', () => {
+    const onLocateIss = vi.fn()
+    render(
+      <LayerPanel
+        layers={LAYER_DESCRIPTORS}
+        visibility={{}}
+        onToggle={vi.fn()}
+        onLocateIss={onLocateIss}
+        issLocatable
+      />,
+    )
+    const button = screen.getByRole('button', { name: /live ISS position/i })
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
+    expect(onLocateIss).toHaveBeenCalledTimes(1)
   })
 })

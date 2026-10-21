@@ -41,6 +41,17 @@ export function App() {
   }, [])
   const runNlQuery = useNlqRunner(() => cityRef.current)
 
+  // The ISS marker only exists after the first successful poll, so the locate
+  // action stays disabled until then.
+  const [issLocatable, setIssLocatable] = useState(false)
+  const handleIssFix = useCallback(() => setIssLocatable(true), [])
+
+  const handleLocateIss = useCallback(() => {
+    // Locating a hidden layer would fly to empty map, so reveal it first.
+    if (!visibility.iss) toggleVisibility('iss', true)
+    cityRef.current?.locateIss()
+  }, [visibility, toggleVisibility])
+
   const [timeStripOpen, setTimeStripOpen] = useState(
     // Open on desktop; collapsed on small screens where the strip would eat
     // vertical space — the status-bar toggle reveals it on demand.
@@ -79,6 +90,7 @@ export function App() {
           onStatusChange={handleStatusChange}
           onExtentStats={handleExtentStats}
           onReady={handleCityReady}
+          onIssFix={handleIssFix}
           initialCenter={initialCenter}
           initialZoom={initialZoom}
           timeStripOpen={timeStripOpen}
@@ -88,6 +100,8 @@ export function App() {
           layers={LAYER_DESCRIPTORS}
           visibility={visibility}
           onToggle={toggleVisibility}
+          onLocateIss={handleLocateIss}
+          issLocatable={issLocatable}
         />
       </main>
       <StatusBar
