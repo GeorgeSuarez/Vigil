@@ -11,6 +11,8 @@ import { watch } from '@arcgis/core/core/reactiveUtils'
 import { configureArcgisSdk } from './arcgis'
 import {
   buildFeatureLayers,
+  createEonetLayer,
+  loadEonetEvents,
   startIssTracking,
   LAYER_DESCRIPTORS,
   type AppLayer,
@@ -43,6 +45,8 @@ export interface CreateCityViewOptions {
   timeSliderHost?: HTMLDivElement | null
   /** Fires once the first ISS position has landed. */
   onIssFix?: () => void
+  /** Notifies React when a layer is added after startup (the EONET feed). */
+  onLayersChanged?: (layers: readonly AppLayer[]) => void
 }
 
 export interface CityView {
@@ -188,14 +192,6 @@ function startQuakeFiltering(
   }
 }
 
-/**
- * The time slider over the quakes layer. The live USGS feed declares
- * timeInfo (startField: 'time', epoch ms). The slider's full range comes from
- * the layer's advertised time extent when the service publishes one,
- * otherwise it is derived from the data with ordered client-side queries.
- * With `view` set, the widget updates view.timeExtent automatically, which
- * filters time-aware layers.
- */
 /** Queries the layer's declared or observed time span: the advertised
  * fullTimeExtent when the service publishes one, otherwise the earliest and
  * latest epoch values in the data itself. */
@@ -253,6 +249,7 @@ function startTimeSlider(
 ): TimeSlider {
   const timeSlider = new TimeSlider({ container: host, mode: 'time-window', view })
   let lastKnownEnd: Date | null = null
+
   const applyRange = async (): Promise<void> => {
     if (timeSlider.destroyed) return
     const range = await deriveTimeRange(quakeLayer)
@@ -301,13 +298,15 @@ export function createCityView({
   initialZoom,
   timeSliderHost,
   onIssFix,
+  onLayersChanged,
 }: CreateCityViewOptions): CityView {
   configureArcgisSdk(apiKey)
 
   const layers = buildFeatureLayers()
+  const map = new EsriMap({ basemap, layers })
   const view = new MapView({
     container,
-    map: new EsriMap({ basemap, layers }),
+    map,
     center: initialCenter ?? CONUS_CENTER,
     zoom: initialZoom ?? DEFAULT_ZOOM,
     popupEnabled: true,
@@ -330,18 +329,18 @@ export function createCityView({
     if (feedUrl) startIssTracking(layer, feedUrl, onIssFix)
   }
 
-  // Flies to the station's current position. Returns false before the first
-  // poll, so the caller can leave its affordance disabled until there is
-  // somewhere to fly to.
-  const locateIss = (): boolean => {
-    const geometry = issLayer?.graphics.getItemAt(0)?.geometry
-    // The marker is always a Point; the SDK types graphic geometry as a union.
-    if (!(geometry instanceof Point)) return false
-    void view.goTo({ center: geometry, zoom: ISS_FOCUS_ZOOM }).catch(() => {
-      // View destroyed mid-flight (StrictMode remount) — nothing to do.
-    })
-    return true
-  }
+  // EONET's feed cannot back a layer directly (its object-valued properties are
+  // dropped on load) and a layer never reloads once loaded — so the layer is
+  // created from flattened data and added when that data arrives.
+  void loadEonetEvents().then((collection) => {
+    const descriptor = LAYER_DESCRIPTORS.find((d) => d.kind === 'eonet')
+    if (!collection || !descriptor || view.destroyed) return
+    const eonetLayer = createEonetLayer(descriptor, collection)
+    map.add(eonetLayer)
+    layers.push(eonetLayer)
+    onLayersChanged?.([...layers])
+    refreshExtentStats()
+  })
 
   const applyQuakeFilter = startQuakeFiltering(view, quakeLayer, refreshExtentStats)
 
@@ -359,6 +358,19 @@ export function createCityView({
 
   view.ui.add(new Legend({ view }), 'bottom-left')
   view.ui.add(new ScaleBar({ view, unit: 'dual' }), 'bottom-left')
+
+  // Flies to the station's current position. Returns false before the first
+  // poll, so the caller can leave its affordance disabled until there is
+  // somewhere to fly to.
+  const locateIss = (): boolean => {
+    const geometry = issLayer?.graphics.getItemAt(0)?.geometry
+    // The marker is always a Point; the SDK types graphic geometry as a union.
+    if (!(geometry instanceof Point)) return false
+    void view.goTo({ center: geometry, zoom: ISS_FOCUS_ZOOM }).catch(() => {
+      // View destroyed mid-flight (StrictMode remount) — nothing to do.
+    })
+    return true
+  }
 
   // Collapsing the strip takes away the only visible time control, so the app
   // releases the temporal filter rather than leaving the map silently filtered.

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import type SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol'
+import type UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer'
 import {
   buildEonetEventPopupHtml,
   buildFeatureLayers,
   buildHurricanePopupHtml,
   buildIssPopupHtml,
   buildQuakePopupHtml,
+  createEonetLayer,
   eonetEventPageUrl,
   type EonetEventAttributes,
   type IssAttributes,
@@ -41,14 +44,47 @@ describe('buildFeatureLayers', () => {
     expect(storms?.timeInfo).toBeNull()
   })
 
-  it('builds the EONET layer pinned to points and an empty ISS graphics layer', () => {
+  it('leaves EONET out of the startup layers, and includes the ISS marker', () => {
     const layers = buildFeatureLayers()
-    const events = layers.find((l): l is GeoJSONLayer => l.type === 'geojson' && l.id === 'eonet')
-    // The feed mixes storm-track LineStrings with points; the layer pins to
-    // points so track geometries are ignored.
-    expect(events?.geometryType).toBe('point')
+    // EONET is created from flattened data once the feed arrives — a layer
+    // never reloads after load, so it cannot be a placeholder.
+    expect(layers.some((l) => l.id === 'eonet')).toBe(false)
     const iss = layers.find((l) => l.type === 'graphics')
     expect(iss?.id).toBe('iss')
+  })
+
+  it('builds the EONET layer from flattened data, pinned to points', () => {
+    const descriptor = LAYER_DESCRIPTORS.find((d) => d.kind === 'eonet')
+    if (!descriptor) throw new Error('missing eonet descriptor')
+    const layer = createEonetLayer(descriptor, {
+      type: 'FeatureCollection',
+      features: [],
+    })
+    expect(layer.type).toBe('geojson')
+    expect(layer.geometryType).toBe('point')
+    expect(layer.url?.startsWith('data:application/geo+json,')).toBe(true)
+    expect(layer.fields.some((field) => field.name === 'category')).toBe(true)
+    layer.destroy()
+  })
+
+  it('gives every EONET category its own glyph, not just a hue', () => {
+    const descriptor = LAYER_DESCRIPTORS.find((d) => d.kind === 'eonet')
+    if (!descriptor) throw new Error('missing eonet descriptor')
+    const events = createEonetLayer(descriptor, { type: 'FeatureCollection', features: [] })
+    const renderer = events.renderer as UniqueValueRenderer
+    const infos = renderer.uniqueValueInfos as { value: string; symbol: SimpleMarkerSymbol }[]
+    expect(infos.map((info) => info.value)).toEqual([
+      'Wildfires',
+      'Severe Storms',
+      'Sea and Lake Ice',
+      'Volcanoes',
+    ])
+    // Shape is the redundant (accessible) channel: each category must differ.
+    const paths = infos.map((info) => info.symbol.path)
+    for (const path of paths) expect(path.length).toBeGreaterThan(10)
+    expect(new Set(paths).size).toBe(paths.length)
+    for (const info of infos) expect(info.symbol.style).toBe('path')
+    events.destroy()
   })
 })
 
@@ -64,13 +100,13 @@ describe('eonetEventPageUrl', () => {
 describe('buildEonetEventPopupHtml', () => {
   const attrs: EonetEventAttributes = {
     title: 'Wildfire - Idaho, United States',
-    description: null,
     link: 'https://eonet.gsfc.nasa.gov/api/v3/events/EONET_6001/geojson',
-    date: '2026-10-18T18:00:00Z',
+    dateMs: Date.UTC(2026, 9, 18, 18, 0),
     magnitudeValue: null,
     magnitudeUnit: null,
-    categories: [{ id: 'wildfires', title: 'Wildfires' }],
-    sources: [{ id: 'NIFS', url: 'https://nifs.example.com/fire/6001' }],
+    category: 'Wildfires',
+    sourceName: 'NIFS',
+    sourceUrl: 'https://nifs.example.com/fire/6001',
   }
 
   it('renders category, source link, and the EONET event page', () => {
@@ -87,7 +123,7 @@ describe('buildEonetEventPopupHtml', () => {
       magnitudeValue: 35,
       magnitudeUnit: 'kts',
       link: null,
-      sources: null,
+      sourceUrl: null,
     })
     expect(html).toContain('35 kts')
     expect(html).not.toContain('event page')

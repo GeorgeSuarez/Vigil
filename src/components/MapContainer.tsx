@@ -64,6 +64,9 @@ export function MapContainer({
       initialZoom,
       timeSliderHost: host,
       onIssFix,
+      // The EONET layer is added once its feed arrives; React must learn about
+      // it so visibility toggles and stats apply to it too.
+      onLayersChanged: setLayers,
     })
     viewRef.current = city
     onReady?.(city)

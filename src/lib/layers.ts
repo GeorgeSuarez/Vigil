@@ -9,6 +9,13 @@ import UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer'
 import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol'
 import TimeInfo from '@arcgis/core/layers/support/TimeInfo'
 import { formatEpoch, formatNullable } from './format'
+import { ICON_PATHS, ICON_OUTLINE_COLOR, ICON_SIZE } from './icons'
+import {
+  EONET_FEED_URL,
+  flattenEonetEvents,
+  toEonetDataUrl,
+  type EonetFeatureCollection,
+} from './eonet'
 
 export type { FeatureLayer }
 export type { GeoJSONLayer }
@@ -102,18 +109,20 @@ export interface HurricaneAttributes {
   Date_Time: number | null
 }
 
-/** Attribute shape of the EONET v3 event feed (subset we render). */
+/** Attribute shape of an EONET event after flattening (see lib/eonet.ts).
+ * Scalars only — GeoJSONLayer drops object/array properties. */
 export interface EonetEventAttributes {
   title: string | null
-  description: string | null
   /** API record URL; ends in /geojson — see eonetEventPageUrl. */
   link: string | null
-  /** ISO 8601 timestamp of the event's latest geometry. */
-  date: string | null
+  /** Epoch milliseconds of the event's latest geometry. */
+  dateMs: number | null
   magnitudeValue: number | null
   magnitudeUnit: string | null
-  categories: readonly { id: string; title: string }[] | null
-  sources: readonly { id: string; url: string }[] | null
+  /** Category title, e.g. "Wildfires" — the renderer's style field. */
+  category: string | null
+  sourceName: string | null
+  sourceUrl: string | null
 }
 
 /** Attribute shape of an ISS poll from wheretheiss.at (subset we render). */
@@ -181,17 +190,15 @@ export function eonetEventPageUrl(link: string | null): string | null {
 
 /** Builds the HTML shown in an EONET event popup. Pure so it can be unit-tested. */
 export function buildEonetEventPopupHtml(a: EonetEventAttributes): string {
-  const iso = a.date === null ? null : new Date(a.date).getTime()
-  const date = formatNullable(iso === null || !Number.isFinite(iso) ? null : formatEpoch(iso))
+  const date = formatNullable(a.dateMs === null ? null : formatEpoch(a.dateMs))
   const magnitude =
     a.magnitudeValue === null || a.magnitudeValue === undefined
       ? null
       : `${a.magnitudeValue} ${a.magnitudeUnit ?? ''}`.trim()
-  const source = a.sources?.[0]
   const pageUrl = eonetEventPageUrl(a.link)
   return [
     `<dl class="popup-facts">`,
-    `<div><dt>Category</dt><dd>${formatNullable(a.categories?.[0]?.title ?? null)}</dd></div>`,
+    `<div><dt>Category</dt><dd>${formatNullable(a.category)}</dd></div>`,
     `<div><dt>Updated (UTC)</dt><dd>${date}</dd></div>`,
     ...(magnitude ? [`<div><dt>Magnitude</dt><dd>${formatNullable(magnitude)}</dd></div>`] : []),
     ...(pageUrl
@@ -199,9 +206,9 @@ export function buildEonetEventPopupHtml(a: EonetEventAttributes): string {
           `<div><dt>Details</dt><dd><a href="${pageUrl}" target="_blank" rel="noopener noreferrer">EONET event page</a></dd></div>`,
         ]
       : []),
-    ...(source?.url
+    ...(a.sourceUrl
       ? [
-          `<div><dt>Source</dt><dd><a href="${source.url}" target="_blank" rel="noopener noreferrer">${formatNullable(source.id)}</a></dd></div>`,
+          `<div><dt>Source</dt><dd><a href="${a.sourceUrl}" target="_blank" rel="noopener noreferrer">${formatNullable(a.sourceName)}</a></dd></div>`,
         ]
       : []),
     `</dl>`,
@@ -258,20 +265,88 @@ function quakeRenderer(): ClassBreaksRenderer {
   })
 }
 
-/** Category color coding for the EONET feed — value comes from an Arcade
- * expression because `categories` is a nested array in the source JSON. */
+/** A single-colour glyph marker: inline SVG path, sized for legibility. */
+function iconSymbol(path: string, color: string, size = ICON_SIZE): SimpleMarkerSymbol {
+  return new SimpleMarkerSymbol({
+    style: 'path',
+    path,
+    size,
+    color,
+    outline: { color: ICON_OUTLINE_COLOR, width: 1 },
+  })
+}
+
+/** Scalar fields produced by flattenEonetEvents. Declared so the layer types
+ * them itself instead of inferring (and dropping) from the payload. */
+const EONET_FIELDS = [
+  { name: 'eventId', type: 'string' },
+  { name: 'title', type: 'string' },
+  { name: 'link', type: 'string' },
+  { name: 'dateMs', type: 'double' },
+  { name: 'magnitudeValue', type: 'double' },
+  { name: 'magnitudeUnit', type: 'string' },
+  { name: 'category', type: 'string' },
+  { name: 'categoryId', type: 'string' },
+  { name: 'sourceName', type: 'string' },
+  { name: 'sourceUrl', type: 'string' },
+] as const
+
+/**
+ * Builds the EONET layer from an already-flattened collection.
+ *
+ * The data has to be present when the layer is CONSTRUCTED: the SDK loads a
+ * layer once, and neither a changed `url` nor a post-load `source` assignment
+ * makes it reload (verified — the layer keeps the empty source it started
+ * with). Hence this factory rather than a loader that updates a placeholder.
+ */
+export function createEonetLayer(
+  descriptor: LayerDescriptor,
+  collection: EonetFeatureCollection,
+): GeoJSONLayer {
+  return new GeoJSONLayer({
+    id: descriptor.id,
+    title: descriptor.title,
+    url: toEonetDataUrl(collection),
+    visible: descriptor.defaultVisible,
+    // Track geometries were dropped while flattening; pin the type explicitly.
+    geometryType: 'point',
+    fields: EONET_FIELDS.map((field) => ({ ...field })),
+    renderer: eonetRenderer(),
+    popupTemplate: eonetPopupTemplate,
+  })
+}
+
+/** Fetches and flattens the EONET feed. Returns null on any failure so the
+ * caller can simply leave the layer out. */
+export async function loadEonetEvents(): Promise<EonetFeatureCollection | null> {
+  try {
+    const res = await fetch(EONET_FEED_URL)
+    if (!res.ok) return null
+    return flattenEonetEvents(await res.json())
+  } catch {
+    return null
+  }
+}
+
+/** Category color coding for the EONET feed — value comes from the flattened
+ * `category` field. Each category also gets its own glyph: shape is the
+ * redundant channel, so the map stays readable without relying on hue alone. */
 function eonetRenderer(): UniqueValueRenderer {
-  const symbol = (color: string) =>
-    new SimpleMarkerSymbol({ color, size: 10, outline: { color: '#0b1220', width: 0.5 } })
   return new UniqueValueRenderer({
-    valueExpression: '$feature.categories[0].title',
+    field: 'category',
     uniqueValueInfos: [
-      { value: 'Wildfires', symbol: symbol('#e5544b') },
-      { value: 'Severe Storms', symbol: symbol('#7f8cff') },
-      { value: 'Sea and Lake Ice', symbol: symbol('#6fd0ff') },
-      { value: 'Volcanoes', symbol: symbol('#f2d43d') },
+      { value: 'Wildfires', symbol: iconSymbol(ICON_PATHS.wildfire, '#e5544b') },
+      { value: 'Severe Storms', symbol: iconSymbol(ICON_PATHS.storm, '#7f8cff') },
+      { value: 'Sea and Lake Ice', symbol: iconSymbol(ICON_PATHS.ice, '#6fd0ff') },
+      { value: 'Volcanoes', symbol: iconSymbol(ICON_PATHS.volcano, '#f2d43d') },
     ],
-    defaultSymbol: symbol('#8b98a9'),
+    // Unknown/unmapped categories fall back to a neutral dot rather than a
+    // misleading hazard glyph.
+    defaultSymbol: new SimpleMarkerSymbol({
+      color: '#8b98a9',
+      size: 10,
+      outline: { color: ICON_OUTLINE_COLOR, width: 0.5 },
+    }),
   })
 }
 
@@ -318,11 +393,7 @@ export function startIssTracking(layer: GraphicsLayer, feedUrl: string, onFix?: 
         graphic = new Graphic({
           geometry,
           attributes,
-          symbol: new SimpleMarkerSymbol({
-            color: '#6fd0ff',
-            size: 12,
-            outline: { color: '#e6edf3', width: 1.5 },
-          }),
+          symbol: iconSymbol(ICON_PATHS.satellite, '#6fd0ff', 20),
           popupTemplate: issPopupTemplate,
         })
         layer.add(graphic)
@@ -356,46 +427,43 @@ const QUAKE_FIELDS = [
   { name: 'url', type: 'string' },
 ] as const
 
-/** Creates the live layer instances described by LAYER_DESCRIPTORS. */
+/** Creates the live layer instances described by LAYER_DESCRIPTORS. EONET is
+ * absent here: it is created from flattened data once the feed arrives. */
 export function buildFeatureLayers(): AppLayer[] {
-  return LAYER_DESCRIPTORS.map((d): AppLayer => {
-    if (d.kind === 'eonet') {
-      return new GeoJSONLayer({
-        id: d.id,
-        title: d.title,
-        url: d.url,
-        visible: d.defaultVisible,
-        // The feed mixes storm-track LineStrings with event Points; pinning to
-        // points keeps the layer clean so the track geometries are ignored.
-        geometryType: 'point',
-        renderer: eonetRenderer(),
-        popupTemplate: eonetPopupTemplate,
-      })
-    }
+  const layers: AppLayer[] = []
+  for (const d of LAYER_DESCRIPTORS) {
+    if (d.kind === 'eonet') continue
     if (d.kind === 'iss') {
-      return buildIssLayer(d)
+      layers.push(buildIssLayer(d))
+      continue
     }
     if (d.kind === 'geojson') {
-      return new GeoJSONLayer({
+      layers.push(
+        new GeoJSONLayer({
+          id: d.id,
+          title: d.title,
+          url: d.url,
+          visible: d.defaultVisible,
+          fields: QUAKE_FIELDS.map((f) => ({ ...f })),
+          renderer: quakeRenderer(),
+          popupTemplate: quakePopupTemplate,
+          featureReduction: { type: 'cluster', clusterRadius: 60 },
+          // Epoch-millis number field driving the TimeSlider.
+          timeInfo: new TimeInfo({ startField: 'time' }),
+          refreshInterval: 2,
+        }),
+      )
+      continue
+    }
+    layers.push(
+      new FeatureLayer({
         id: d.id,
         title: d.title,
         url: d.url,
         visible: d.defaultVisible,
-        fields: QUAKE_FIELDS.map((f) => ({ ...f })),
-        renderer: quakeRenderer(),
-        popupTemplate: quakePopupTemplate,
-        featureReduction: { type: 'cluster', clusterRadius: 60 },
-        // Epoch-millis number field driving the TimeSlider.
-        timeInfo: new TimeInfo({ startField: 'time' }),
-        refreshInterval: 2,
-      })
-    }
-    return new FeatureLayer({
-      id: d.id,
-      title: d.title,
-      url: d.url,
-      visible: d.defaultVisible,
-      popupTemplate: hurricanePopupTemplate,
-    })
-  })
+        popupTemplate: hurricanePopupTemplate,
+      }),
+    )
+  }
+  return layers
 }
