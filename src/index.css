@@ -92,6 +92,9 @@ body {
 .app-shell {
   display: grid;
   grid-template-rows: auto 1fr auto;
+  /* minmax(0, 1fr) stops a wide child (a nowrap status row, the SDK widget)
+     from widening the implicit column past the viewport. */
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
 }
 
@@ -207,6 +210,8 @@ body {
   /* Sits above the map, clearing the time strip when it is showing. */
   inset-block-end: 16px;
   width: min(300px, 80vw);
+  /* Belt and braces: never wider than the viewport, whatever the window is. */
+  max-width: calc(100vw - 32px);
   padding: 14px;
   z-index: 10;
   overflow-y: auto;
@@ -272,6 +277,13 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  /* Never shrink: the switch must stay reachable even if a title is long. */
+  flex: none;
+}
+
+/* The global reset sets min-width: 0, which lets a flex item collapse to
+   nothing — a switch squeezed to zero width looks exactly like a missing one. */
+.layer-actions > calcite-switch {
   flex: none;
 }
 
