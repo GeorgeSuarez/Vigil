@@ -70,6 +70,15 @@ body,
   height: 100%;
 }
 
+/* App shell, not a document: the page itself never scrolls. Panels own their
+   own scrolling (side panel, NLQ log). Without this, any stray overflow lets
+   the document scroll and the footer status bar ends up below the fold — it
+   looks like the footer simply vanished. */
+html,
+body {
+  overflow: hidden;
+}
+
 /* App shell with UI pinned to the bottom: dvh tracks the mobile toolbars
    so the status bar never sits behind them. */
 @supports (height: 100dvh) {
