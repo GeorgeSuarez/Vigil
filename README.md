@@ -84,6 +84,15 @@ src/
 - Component tests render the real Calcite custom elements in jsdom and assert rendered attributes
 - The SDK-facing factory is exercised in the browser, not in jsdom
 
+## Known follow-ups
+
+- **Widget → component migration.** `Home`, `Legend`, `ScaleBar` and `TimeSlider` are
+  deprecated in SDK 5.x in favour of `<arcgis-*>` web components. They still work
+  and log one informational line each. Migrating them requires adopting
+  `<arcgis-map>` (the components need that parent for layout and theming), which
+  touches the view lifecycle, the time slider and the NLQ executor.
+  Tracked in [#1](https://github.com/GeorgeSuarez/arcgis-city-explorer/issues/1).
+
 ## Learn more
 
 - [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/)
