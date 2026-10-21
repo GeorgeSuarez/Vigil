@@ -50,28 +50,46 @@ export function MapContainer({
     const strip = timeStripRef.current
     if (!container || !strip) return
     // Imperative host node: created and owned outside React so the widget's
-    // DOM survives StrictMode's double-mount and later reconciliations.
+    // DOM survives later reconciliations.
     const host = document.createElement('div')
     host.className = 'time-slider-host'
-    strip.append(host)
-    const city = createCityView({
-      container,
-      basemap,
-      apiKey,
-      onStatusChange,
-      onExtentStats,
-      initialCenter,
-      initialZoom,
-      timeSliderHost: host,
-      onIssFix,
-      // The EONET layer is added once its feed arrives; React must learn about
-      // it so visibility toggles and stats apply to it too.
-      onLayersChanged: setLayers,
-    })
-    viewRef.current = city
-    onReady?.(city)
-    setLayers(city.layers)
+
+    let city: CityView | null = null
+    let cancelled = false
+
+    // Create the view on the next macrotask. React StrictMode mounts, unmounts
+    // and remounts synchronously in development; deferring lets the first pass
+    // be cancelled before it issues any request, so only ONE view is ever built
+    // and nothing is aborted mid-load. That removes the whole class of
+    // "Failed to load basemap" + unhandled AbortError noise at its source
+    // rather than filtering it.
+    const timer = window.setTimeout(() => {
+      if (cancelled) return
+      strip.append(host)
+      const view = createCityView({
+        container,
+        basemap,
+        apiKey,
+        onStatusChange,
+        onExtentStats,
+        initialCenter,
+        initialZoom,
+        timeSliderHost: host,
+        onIssFix,
+        // The EONET layer is added once its feed arrives; React must learn about
+        // it so visibility toggles and stats apply to it too.
+        onLayersChanged: setLayers,
+      })
+      city = view
+      viewRef.current = view
+      onReady?.(view)
+      setLayers(view.layers)
+    }, 0)
+
     return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+      if (!city) return
       city.timeSlider?.destroy()
       city.view.destroy()
       host.remove()
