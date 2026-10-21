@@ -20,6 +20,19 @@ import './index.css'
 
 import { App } from './App'
 
+// React StrictMode mounts the map twice in development: the first MapView is
+// destroyed while its basemap request is still in flight, so the SDK rejects
+// with AbortError and the console fills with "Uncaught (in promise)". The
+// second mount loads normally and the app is unaffected — and StrictMode's
+// double-invoke does not happen in production. Filter only that abort, so real
+// rejections still surface.
+window.addEventListener('unhandledrejection', (event) => {
+  const reason: unknown = event.reason
+  if (typeof reason !== 'object' || reason === null) return
+  const { name, message } = reason as { name?: unknown; message?: unknown }
+  if (name === 'AbortError' || message === 'Aborted') event.preventDefault()
+})
+
 const rootElement = document.querySelector<HTMLElement>('#root')
 if (!rootElement) throw new Error('#root element is missing from index.html')
 
