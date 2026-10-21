@@ -1,4 +1,4 @@
-import type { ViewStatus } from '../lib/createCityView'
+import type { ViewStatus } from '../lib/createMapController'
 import { formatDegrees, formatNumber, formatScale, withCountLabel } from '../lib/format'
 
 /** One per visible layer: a compact label plus its in-view feature count. */

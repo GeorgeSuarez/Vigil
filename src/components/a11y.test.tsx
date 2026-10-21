@@ -6,7 +6,7 @@ import { NlqPanel } from './NlqPanel'
 import { Header } from './Header'
 import { LayerPanel } from './LayerPanel'
 import { StatusBar } from './StatusBar'
-import type { ViewStatus } from '../lib/createCityView'
+import type { ViewStatus } from '../lib/createMapController'
 import { BASEMAP_OPTIONS } from '../lib/basemaps'
 import { LAYER_DESCRIPTORS } from '../lib/layers'
 

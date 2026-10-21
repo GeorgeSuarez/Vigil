@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { StatusBar } from './StatusBar'
-import type { ViewStatus } from '../lib/createCityView'
+import type { ViewStatus } from '../lib/createMapController'
 
 describe('StatusBar', () => {
   it('renders center, zoom, and scale', () => {

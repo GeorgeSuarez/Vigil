@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { anthropicApiKey, anthropicModel, hasAnthropicKey } from '../lib/arcgis'
-import type { CityView } from '../lib/createCityView'
+import type { MapController } from '../lib/createMapController'
 import { createNlqExecutor } from '../lib/nlq/execute'
 import { intentFromLlm } from '../lib/nlq/llm'
 import { parseNlQuery } from '../lib/nlq/parser'
@@ -11,7 +11,9 @@ import { parseNlQuery } from '../lib/nlq/parser'
  * falls back to the offline rule-based parser. The executor is memoized for
  * the session so filter state survives across commands.
  */
-export function useNlqRunner(getTargets: () => CityView | null): (text: string) => Promise<string> {
+export function useNlqRunner(
+  getTargets: () => MapController | null,
+): (text: string) => Promise<string> {
   const executorRef = useRef<ReturnType<typeof createNlqExecutor> | null>(null)
 
   // Latest-ref: targets are resolved at call time, so the returned callback
@@ -23,14 +25,14 @@ export function useNlqRunner(getTargets: () => CityView | null): (text: string) 
 
   return useCallback(async (text: string): Promise<string> => {
     executorRef.current ??= createNlqExecutor(() => {
-      const city = targetsRef.current()
-      if (!city) return null
+      const controller = targetsRef.current()
+      if (!controller) return null
       return {
-        view: city.view,
-        layers: city.layers,
-        timeSlider: city.timeSlider,
-        refreshExtentStats: city.refreshExtentStats,
-        applyQuakeFilter: city.applyQuakeFilter,
+        view: controller.view,
+        layers: controller.layers,
+        timeSlider: controller.timeSlider,
+        refreshExtentStats: controller.refreshExtentStats,
+        applyQuakeFilter: controller.applyQuakeFilter,
       }
     })
     const executor = executorRef.current

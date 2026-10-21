@@ -1,22 +1,3 @@
-/**
- * Inline vector glyphs for map markers.
- *
- * Design space is 32×32; a SimpleMarkerSymbol `path` is scaled to the symbol
- * size. The shapes are single-colour silhouettes with a dark outline: at the
- * ~18px a map marker gets, silhouette legibility beats internal detail, and the
- * fill comes from the layer's category colour so the legend stays consistent.
- *
- * Each glyph is ONE closed subpath drawn with M/L/C/Q/Z only. SimpleMarkerSymbol
- * renders only the first subpath of a compound path (verified in the browser: a
- * two-hook cyclone and a panel/body/panel satellite each lost every subpath
- * after the first), and it does not support SVG arc (A) commands at all — such
- * a path renders nothing.
- *
- * Why not Esri's WebStyleSymbol hazard icons? They resolve over the network and
- * cannot be resized or recoloured in 2D (fetchSymbol is 3D-only), which rules
- * them out for size control and offline rendering.
- */
-
 export const ICON_PATHS = {
   /** Wildfires — flame with a notched left shoulder and an offset tip, so it
    * does not read as a water droplet. */

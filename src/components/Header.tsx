@@ -26,7 +26,7 @@ export function Header({ hasApiKey, basemap, basemapOptions, onBasemapChange }: 
           <path d="M7 16h18" stroke="currentColor" strokeWidth="1.5" />
         </svg>
         <div className="brand-text">
-          <h1>City Explorer</h1>
+          <h1>Vigil</h1>
         </div>
       </div>
 

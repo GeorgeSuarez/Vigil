@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ExtentStats, ViewStatus } from '../lib/createCityView'
+import type { ExtentStats, ViewStatus } from '../lib/createMapController'
 import { formatDegrees } from '../lib/format'
 import { LAYER_DESCRIPTORS } from '../lib/layers'
 

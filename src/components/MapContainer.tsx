@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  createCityView,
-  type CityView,
+  createMapController,
   type ExtentStats,
+  type MapController,
   type ViewStatus,
-} from '../lib/createCityView'
+} from '../lib/createMapController'
 import type { AppLayer, LayerId } from '../lib/layers'
 
 export interface MapContainerProps {
@@ -13,8 +13,8 @@ export interface MapContainerProps {
   visibility: Record<LayerId, boolean>
   onStatusChange: (status: ViewStatus) => void
   onExtentStats: (stats: ExtentStats) => void
-  /** Hands the live CityView (view/layers/slider) up to App once created. */
-  onReady?: (city: CityView) => void
+  /** Hands the live MapController (view/layers/slider) up to App once created. */
+  onReady?: (controller: MapController) => void
   /** Whether the time slider strip is shown; the strip div itself stays mounted. */
   timeStripOpen: boolean
   /** Fires once the first ISS position has landed. */
@@ -42,7 +42,7 @@ export function MapContainer({
 }: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const timeStripRef = useRef<HTMLDivElement | null>(null)
-  const viewRef = useRef<CityView | null>(null)
+  const viewRef = useRef<MapController | null>(null)
   const [layers, setLayers] = useState<readonly AppLayer[]>([])
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export function MapContainer({
     const host = document.createElement('div')
     host.className = 'time-slider-host'
 
-    let city: CityView | null = null
+    let controller: MapController | null = null
     let cancelled = false
 
     // Create the view on the next macrotask. React StrictMode mounts, unmounts
@@ -66,7 +66,7 @@ export function MapContainer({
     const timer = window.setTimeout(() => {
       if (cancelled) return
       strip.append(host)
-      const view = createCityView({
+      const view = createMapController({
         container,
         basemap,
         apiKey,
@@ -80,7 +80,7 @@ export function MapContainer({
         // it so visibility toggles and stats apply to it too.
         onLayersChanged: setLayers,
       })
-      city = view
+      controller = view
       viewRef.current = view
       onReady?.(view)
       setLayers(view.layers)
@@ -89,9 +89,9 @@ export function MapContainer({
     return () => {
       cancelled = true
       window.clearTimeout(timer)
-      if (!city) return
-      city.timeSlider?.destroy()
-      city.view.destroy()
+      if (!controller) return
+      controller.timeSlider?.destroy()
+      controller.view.destroy()
       host.remove()
       viewRef.current = null
     }

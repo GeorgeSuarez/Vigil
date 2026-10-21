@@ -1,6 +1,6 @@
-# City Explorer
+# Vigil
 
-A polished, deployable mapping app built with the **ArcGIS Maps SDK for JavaScript**, **React 19**, **TypeScript (strict)**, and the **Calcite Design System** — the stack Esri's own product teams use.
+A live natural-hazard watcher built with the **ArcGIS Maps SDK for JavaScript**, **React 19**, **TypeScript (strict)**, and the **Calcite Design System** — the stack Esri's own product teams use.
 
 ## Features
 
@@ -67,7 +67,7 @@ src/
 ├── lib/
 │   ├── arcgis.ts      # env config, API key, esriConfig wiring
 │   ├── basemaps.ts    # basemap option data
-│   ├── createCityView.ts # SDK factory: Map, MapView, widgets, watchers
+│   ├── createMapController.ts # SDK factory: Map, MapView, widgets, watchers
 │   ├── layers.ts      # layer descriptors, popup HTML builders, FeatureLayer factory
 │   └── format.ts      # pure formatting helpers
 └── types/calcite.d.ts # Calcite web components in React's JSX type space
@@ -91,7 +91,7 @@ src/
   and log one informational line each. Migrating them requires adopting
   `<arcgis-map>` (the components need that parent for layout and theming), which
   touches the view lifecycle, the time slider and the NLQ executor.
-  Tracked in [#1](https://github.com/GeorgeSuarez/arcgis-city-explorer/issues/1).
+  Tracked in [#1](https://github.com/GeorgeSuarez/arcgis-vigil/issues/1).
 
 ## Learn more
 

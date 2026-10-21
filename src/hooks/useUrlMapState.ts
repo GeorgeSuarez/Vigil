@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ViewStatus } from '../lib/createCityView'
+import type { ViewStatus } from '../lib/createMapController'
 import { BASEMAP_OPTIONS } from '../lib/basemaps'
 import { LAYER_DESCRIPTORS } from '../lib/layers'
 import { parseUrlState, serializeUrlState } from '../lib/urlState'

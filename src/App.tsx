@@ -10,7 +10,7 @@ import { useNlqRunner } from './hooks/useNlqRunner'
 import { useSettledAnnouncement } from './hooks/useSettledAnnouncement'
 import { useUrlMapState } from './hooks/useUrlMapState'
 import { apiKey, hasAnthropicKey, hasApiKey } from './lib/arcgis'
-import type { CityView, ExtentStats, ViewStatus } from './lib/createCityView'
+import type { ExtentStats, MapController, ViewStatus } from './lib/createMapController'
 import { LAYER_DESCRIPTORS } from './lib/layers'
 
 const INITIAL_STATUS: ViewStatus = {
@@ -32,14 +32,14 @@ export function App() {
   const { basemap, setBasemap, visibility, toggleVisibility, initialCenter, initialZoom } =
     useUrlMapState(status)
 
-  // The map container hands up the live CityView; the NLQ runner resolves it
-  // fresh at call time (StrictMode recreates the container), keeping its
+  // The map container hands up the live MapController; the NLQ runner resolves
+  // it fresh at call time (StrictMode recreates the container), keeping its
   // session filter state across commands.
-  const cityRef = useRef<CityView | null>(null)
-  const handleCityReady = useCallback((city: CityView) => {
-    cityRef.current = city
+  const controllerRef = useRef<MapController | null>(null)
+  const handleMapReady = useCallback((controller: MapController) => {
+    controllerRef.current = controller
   }, [])
-  const runNlQuery = useNlqRunner(() => cityRef.current)
+  const runNlQuery = useNlqRunner(() => controllerRef.current)
 
   // The ISS marker only exists after the first successful poll, so the locate
   // action stays disabled until then.
@@ -49,7 +49,7 @@ export function App() {
   const handleLocateIss = useCallback(() => {
     // Locating a hidden layer would fly to empty map, so reveal it first.
     if (!visibility.iss) toggleVisibility('iss', true)
-    cityRef.current?.locateIss()
+    controllerRef.current?.locateIss()
   }, [visibility, toggleVisibility])
 
   const [timeStripOpen, setTimeStripOpen] = useState(
@@ -63,7 +63,7 @@ export function App() {
       // Collapsing the strip removes the only visible time control, so
       // release the temporal filter rather than leave the map silently
       // filtered with no visible way to change it.
-      if (open) cityRef.current?.resetTimeWindow()
+      if (open) controllerRef.current?.resetTimeWindow()
       return !open
     })
   }, [])
@@ -89,7 +89,7 @@ export function App() {
           visibility={visibility}
           onStatusChange={handleStatusChange}
           onExtentStats={handleExtentStats}
-          onReady={handleCityReady}
+          onReady={handleMapReady}
           onIssFix={handleIssFix}
           initialCenter={initialCenter}
           initialZoom={initialZoom}

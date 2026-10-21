@@ -32,7 +32,7 @@ export interface ViewStatus {
 /** Feature counts per layer id, computed against the current view extent. */
 export type ExtentStats = Record<string, number>
 
-export interface CreateCityViewOptions {
+export interface CreateMapControllerOptions {
   container: HTMLDivElement
   basemap: string
   apiKey: string
@@ -49,7 +49,7 @@ export interface CreateCityViewOptions {
   onLayersChanged?: (layers: readonly AppLayer[]) => void
 }
 
-export interface CityView {
+export interface MapController {
   view: MapView
   layers: readonly AppLayer[]
   /** Recomputes view-extent stats; call after layer visibility changes. */
@@ -288,7 +288,7 @@ function startTimeSlider(
  * React owns the lifecycle in MapContainer; everything SDK-specific lives here
  * so it can be swapped or mocked without touching UI code.
  */
-export function createCityView({
+export function createMapController({
   container,
   basemap,
   apiKey,
@@ -299,7 +299,7 @@ export function createCityView({
   timeSliderHost,
   onIssFix,
   onLayersChanged,
-}: CreateCityViewOptions): CityView {
+}: CreateMapControllerOptions): MapController {
   configureArcgisSdk(apiKey)
 
   const layers = buildFeatureLayers()

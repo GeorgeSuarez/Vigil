@@ -16,7 +16,7 @@ const setup = (hasApiKey: boolean) =>
 describe('Header', () => {
   it('renders the title', () => {
     setup(false)
-    expect(screen.getByText('City Explorer')).toBeVisible()
+    expect(screen.getByText('Vigil')).toBeVisible()
     expect(screen.queryByText(/ArcGIS Maps SDK/)).toBeNull()
   })
 
