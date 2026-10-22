@@ -6,6 +6,7 @@ import { NlqPanel } from './NlqPanel'
 import { Header } from './Header'
 import { LayerPanel } from './LayerPanel'
 import { StatusBar } from './StatusBar'
+import { VigilStat } from './VigilStat'
 import type { ViewStatus } from '../lib/createMapController'
 import { BASEMAP_OPTIONS } from '../lib/basemaps'
 import { LAYER_DESCRIPTORS } from '../lib/layers'
@@ -44,6 +45,16 @@ describe('component accessibility (axe)', () => {
 
   it('the NLQ panel has no violations', async () => {
     const { container } = render(<NlqPanel onRun={vi.fn()} llmActive={false} hasApiKey={false} />)
+    await expectNoAxeViolations(container as HTMLElement)
+  })
+
+  it('the stat element has no violations', async () => {
+    const { container } = render(
+      <div>
+        <VigilStat label="Zoom" value={4} emphasis />
+        <VigilStat label="Exposure" value="12,400" tone="danger" />
+      </div>,
+    )
     await expectNoAxeViolations(container as HTMLElement)
   })
 })

@@ -115,7 +115,10 @@ src/
 │   ├── MapAnnouncer.tsx # ARIA live region narrating settled map state
 │   ├── MapContainer.tsx # owns the MapView lifecycle; syncs props imperatively
 │   ├── NlqPanel.tsx   #   "Ask the map" command panel
-│   └── StatusBar.tsx  #   live center/zoom/scale readout + in-view counts
+│   ├── StatusBar.tsx  #   live center/zoom/scale readout + in-view counts
+│   └── VigilStat.tsx  #   React wrapper for the <vigil-stat> element
+├── elements/
+│   └── vigil-stat.ts  #   <vigil-stat>: shadow DOM, slots, parts, token theming
 ├── hooks/
 │   ├── useLayerVisibility.ts    # pure toggle state logic
 │   ├── useNlqRunner.ts          # NLQ executor lifecycle (offline parser or LLM)
@@ -141,6 +144,8 @@ src/
 **Data flow:** React state (`basemap`, layer visibility) → imperative updates on the live `MapView` (`map.basemap = …`, `layer.visible = …`). The view is created exactly once per mount; props never recreate it. SDK events (`reactiveUtils.watch`) flow back into React state through a stable, rAF-throttled callback.
 
 **Why this split:** everything that imports `@arcgis/core` is isolated to `lib/`, `MapContainer`, and the one network-backed integration test. UI components are framework-agnostic and unit-testable without the SDK, which is the same separation Esri's React integration guides recommend.
+
+**Why a hand-authored element:** the status bar's label/value pairs are the app's most repeated atom, and they are the one place where the content must stay in the light DOM — a screen reader reads them in document order, and the tests query them with `getByText`. So the shadow root owns only layout, weight and tone, while `<slot name="label">` and `<slot name="value">` carry the text. Consumers get exactly two hooks: the exported `parts` (`label`, `value`) and the `--vigil-stat-*` custom properties; no internal selector is public. `<vigil-stat>` ships as a plain class registered once (guarded, so HMR and StrictMode cannot re-define it) plus a thin React 19 wrapper that relies on React assigning declared properties rather than stringifying attributes.
 
 ## Testing
 

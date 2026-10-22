@@ -1,5 +1,7 @@
+import { Fragment } from 'react'
 import type { ViewStatus } from '../lib/createMapController'
 import { formatDegrees, formatNumber, formatScale, withCountLabel } from '../lib/format'
+import { VigilStat } from './VigilStat'
 
 /** One per visible layer: a compact label plus its in-view feature count. */
 export interface ExtentItem {
@@ -26,28 +28,28 @@ export function StatusBar({
   return (
     <footer className="status-bar" aria-label="Map view status">
       <div className="status-items">
-        <span className="status-item">
-          Center{' '}
-          <strong>
-            {formatDegrees(status.lat, 'lat')}, {formatDegrees(status.lon, 'lon')}
-          </strong>
-        </span>
-        <span className="status-item">
-          Zoom <strong>{status.zoom === null ? '—' : Math.round(status.zoom)}</strong>
-        </span>
-        <span className="status-item">
-          Scale <strong>{formatScale(status.scale)}</strong>
-        </span>
+        <VigilStat
+          label="Center"
+          emphasis
+          value={`${formatDegrees(status.lat, 'lat')}, ${formatDegrees(status.lon, 'lon')}`}
+        />
+        <VigilStat
+          label="Zoom"
+          emphasis
+          value={status.zoom === null ? '—' : Math.round(status.zoom)}
+        />
+        <VigilStat label="Scale" emphasis value={formatScale(status.scale)} />
         {extentItems.length > 0 && (
-          <span className="status-item">
-            In view{' '}
-            {extentItems.map((item, index) => (
-              <strong key={item.label}>
+          <VigilStat
+            label="In view"
+            emphasis
+            value={extentItems.map((item, index) => (
+              <Fragment key={item.label}>
                 {index > 0 && ' · '}
                 {formatNumber(item.count)} {withCountLabel(item.count, item.label)}
-              </strong>
+              </Fragment>
             ))}
-          </span>
+          />
         )}
       </div>
       {onToggleTimeStrip !== undefined && (

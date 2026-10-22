@@ -439,8 +439,9 @@ body {
   white-space: nowrap;
 }
 
-/* Keep natural width under the reset's min-width: 0; the row scrolls. */
-.status-item {
+/* Keep natural width under the reset's min-width: 0; the row scrolls. The atom
+   itself carries `flex: none` in its shadow root. */
+.status-items > vigil-stat {
   flex: none;
 }
 
@@ -494,9 +495,11 @@ body {
   outline-offset: 2px;
 }
 
-.status-item strong {
+/* The bar is muted; a stat's value is the part meant to be read. Styling it
+   through the exported part is the only stable hook — the shadow root owns
+   everything inside. */
+.status-bar vigil-stat::part(value) {
   color: var(--text);
-  font-weight: 600;
 }
 
 /* ---------- Popup content (light DOM inside the ArcGIS popup) ---------- */
