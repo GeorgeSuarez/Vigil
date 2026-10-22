@@ -7,7 +7,9 @@ export interface HeaderProps {
   onBasemapChange: (value: string) => void
 }
 
-/** App header: brand, basemap switcher, and API-key status chip. */
+/** App header: brand, basemap switcher, and (when set) the API-key status chip.
+ * The keyless call-to-action lives in the Ask-the-map panel, where the missing
+ * key actually blocks something the user is trying to do. */
 export function Header({ hasApiKey, basemap, basemapOptions, onBasemapChange }: HeaderProps) {
   return (
     <header className="app-header">
@@ -48,19 +50,9 @@ export function Header({ hasApiKey, basemap, basemapOptions, onBasemapChange }: 
           ))}
         </calcite-select>
 
-        {hasApiKey ? (
-          <calcite-chip scale="s" kind="brand" icon="key" label="API key status">
+        {hasApiKey && (
+          <calcite-chip scale="s" kind="brand" icon="key" label="API key configured">
             API key configured
-          </calcite-chip>
-        ) : (
-          <calcite-chip
-            scale="s"
-            kind="neutral"
-            icon="key"
-            label="API key status"
-            title="See .env.example"
-          >
-            Add API key for search & basemaps
           </calcite-chip>
         )}
       </div>

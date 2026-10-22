@@ -20,12 +20,14 @@ describe('Header', () => {
     expect(screen.queryByText(/ArcGIS Maps SDK/)).toBeNull()
   })
 
-  it('shows an API-key hint chip when no key is configured', () => {
+  it('shows no key hint when no key is configured', () => {
     setup(false)
-    expect(screen.getByText(/Add API key/)).toBeVisible()
+    // The call-to-action moved into the Ask-the-map panel; the header stays quiet.
+    expect(screen.queryByText(/Add API key/)).toBeNull()
+    expect(screen.queryByText(/API key configured/)).toBeNull()
   })
 
-  it('hides the hint chip when a key is configured', () => {
+  it('confirms the key once one is configured', () => {
     setup(true)
     expect(screen.queryByText(/Add API key/)).toBeNull()
     expect(screen.getByText('API key configured')).toBeVisible()

@@ -660,6 +660,40 @@ body {
   color: var(--text-muted);
 }
 
+/* Keyless call-to-action. It used to be a chip in the header, where a 12px
+   tooltip was the only place the fix was named — unreachable on touch. Here it
+   sits next to the feature the missing key actually gates, spelled out. */
+.nlq-key-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--text) 4%, transparent);
+}
+
+.nlq-key-copy {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.nlq-key-copy code {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--text) 10%, transparent);
+  color: var(--text);
+  font-size: 11px;
+}
+
+/* The chip is a flex item here, so stop it shrinking to its icon when the copy
+   wraps at 320px. */
+.nlq-key-hint > calcite-chip {
+  flex: none;
+}
+
 .nlq-entry {
   display: flex;
   flex-direction: column;
@@ -743,5 +777,12 @@ body {
 
   .time-strip .time-slider-host .esri-time-slider__max {
     margin-inline-end: 0;
+  }
+
+  /* Stack the keyless note: side by side, the chip eats half the card and the
+     copy wraps to five short lines. */
+  .nlq-key-hint {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

@@ -96,7 +96,7 @@ export function App() {
           initialZoom={initialZoom}
           timeStripOpen={timeStripOpen}
         />
-        <NlqPanel onRun={runNlQuery} llmActive={hasLlmConfig} />
+        <NlqPanel onRun={runNlQuery} llmActive={hasLlmConfig} hasApiKey={hasApiKey} />
         <LayerPanel
           layers={LAYER_DESCRIPTORS}
           visibility={visibility}
