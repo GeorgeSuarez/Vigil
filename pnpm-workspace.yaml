@@ -6,6 +6,7 @@
 # in by Calcite's dependency tree — explicitly disallowed.
 allowBuilds:
   '@vaadin/vaadin-usage-statistics': false
+  workerd: true
 minimumReleaseAgeExclude:
   - '@oxfmt/binding-android-arm-eabi@0.74.0'
   - '@oxfmt/binding-android-arm64@0.74.0'

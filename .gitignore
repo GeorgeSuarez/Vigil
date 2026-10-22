@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Cloudflare build output and local state
+.cloudflare
+.wrangler
+.dev.vars*
+!.dev.vars.example
+
 # Local env files and test coverage
 .env
 .env.*

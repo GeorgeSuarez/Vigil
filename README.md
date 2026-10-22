@@ -18,6 +18,7 @@ A live natural-hazard watcher built with the **ArcGIS Maps SDK for JavaScript**,
 - ⏱️ **Time slider** — dual-thumb temporal filter over the quakes layer (SDK `TimeSlider` + `layer.timeInfo`); the map and the in-view counts both react to the active window. The range is derived from the layer's own time extent at load, not hardcoded.
 - ♿ **Accessibility** — landmarks with accessible names, a screen-reader announcer (ARIA live region) narrating settled map state, visible focus states, and `prefers-reduced-motion` support; every SDK-free component passes an axe audit in the unit suite.
 - 💬 **Ask the map** — natural-language commands ("M5 in Alaska", "last 3 days", "zoom to Japan", "clear filters") drive real map operations: layer definition expressions, animated fly-to, and the temporal window. Runs keyless via a pure offline parser; configure an OpenAI, OpenCode Zen, or Anthropic key to route through LLM tool-calls instead (`VITE_LLM_PROVIDER` + `VITE_LLM_API_KEY`).
+- ☁️ **Cloudflare deployment** — the static SPA ships as a Cloudflare Worker with static assets and SPA fallback routing; `cloudflare.config.ts` plus the Cloudflare Vite plugin produce the Build Output that `cf deploy` uploads.
 
 ## Quick start
 
@@ -26,7 +27,7 @@ pnpm install
 pnpm dev
 ```
 
-Requires Node 20+ and pnpm (the exact version is pinned by `packageManager` in `package.json`).
+Requires Node `^22.23.0 || ^24.22.0 || ^26.12.0` (the pinned Cloudflare CLI's engine range; CI uses Node 26) and pnpm (the exact version is pinned by `packageManager` in `package.json`).
 
 Open http://localhost:5173. The app runs **without any API key** — it uses the OpenStreetMap basemap and Esri's public sample services.
 
@@ -64,6 +65,27 @@ Provider-specific aliases work too: `VITE_OPENAI_API_KEY`, `VITE_OPENCODE_API_KE
 
 Restart the dev server after changing `.env.local`. Vite embeds `VITE_*` values in the client bundle, so use scoped/demo keys and never commit `.env.local`. LLM calls run in the browser, so the provider must allow CORS; use `VITE_LLM_BASE_URL` to point at a proxy if needed.
 
+### Deploy to Cloudflare
+
+The app deploys as a **Cloudflare Worker with static assets** (the new Pages-on-Workers path). `cloudflare.config.ts` sets the Worker name (`arcgis-vigil`) and SPA fallback, and the Cloudflare Vite plugin produces the Build Output.
+
+```bash
+pnpm install
+pnpm typecheck
+pnpm exec cf deploy --dry-run   # build + validate, no upload
+pnpm run deploy                 # build + deploy
+```
+
+Use `pnpm run deploy` (or `pnpm exec cf deploy`) — `pnpm deploy` is pnpm's own built-in command and will not run the script. `cf deploy` runs `vite build` directly, so run `pnpm typecheck` first if you want the TypeScript gate. To split build from upload:
+
+```bash
+pnpm exec tsc -b
+pnpm exec cf build
+pnpm exec cf deploy --prebuilt --mode production
+```
+
+The first deploy prints the `*.workers.dev` URL. This project is live at <https://arcgis-vigil.georgesuarezdev.workers.dev>. `VITE_*` values are baked into the client bundle at build time, so set them in `.env.local` locally or in the CI environment when deploying — Cloudflare runtime variables do not affect the static build.
+
 ## Scripts
 
 | Command | What it does |
@@ -71,6 +93,8 @@ Restart the dev server after changing `.env.local`. Vite embeds `VITE_*` values 
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production build |
 | `pnpm preview` | Serve the production build |
+| `pnpm run deploy` | Build + deploy to Cloudflare with `cf deploy` |
+| `pnpm run deploy:dry-run` | Build + validate the Cloudflare deploy without uploading |
 | `pnpm test` | Vitest (run once) |
 | `pnpm test:watch` | Vitest watch mode |
 | `pnpm typecheck` | `tsc -b` |
