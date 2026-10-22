@@ -7,7 +7,7 @@ import { defineConfig } from 'cf/config'
 export default defineConfig({
   worker: {
     name: 'arcgis-vigil',
-    compatibilityDate: '2026-10-21',
+    compatibilityDate: '2026-10-19',
     observability: { enabled: true },
     workersDev: true,
     assets: {
