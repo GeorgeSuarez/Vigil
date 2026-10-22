@@ -11,13 +11,6 @@ export const apiKey: string = (import.meta.env.VITE_ARCGIS_API_KEY ?? '').trim()
 
 export const hasApiKey: boolean = apiKey.length > 0
 
-/** Optional Anthropic key for the NLQ panel's LLM mode (falls back to offline rules). */
-export const anthropicApiKey: string = (import.meta.env.VITE_ANTHROPIC_API_KEY ?? '').trim()
-export const hasAnthropicKey: boolean = anthropicApiKey.length > 0
-export const anthropicModel: string = (
-  import.meta.env.VITE_ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001'
-).trim()
-
 /** Applies the API key (when present) to the SDK. Called when the map is created. */
 export function configureArcgisSdk(key: string): void {
   if (key) esriConfig.apiKey = key

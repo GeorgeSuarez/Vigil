@@ -17,7 +17,7 @@ A live natural-hazard watcher built with the **ArcGIS Maps SDK for JavaScript**,
 - 🔢 **Live view-extent stats** — per-layer feature counts in the status bar, recomputed via `queryFeatureCount` whenever the map stops moving or a layer toggles
 - ⏱️ **Time slider** — dual-thumb temporal filter over the quakes layer (SDK `TimeSlider` + `layer.timeInfo`); the map and the in-view counts both react to the active window. The range is derived from the layer's own time extent at load, not hardcoded.
 - ♿ **Accessibility** — landmarks with accessible names, a screen-reader announcer (ARIA live region) narrating settled map state, visible focus states, and `prefers-reduced-motion` support; every SDK-free component passes an axe audit in the unit suite.
-- 💬 **Ask the map** — natural-language commands ("M5 in Alaska", "last 3 days", "zoom to Japan", "clear filters") drive real map operations: layer definition expressions, animated fly-to, and the temporal window. Runs keyless via a pure offline parser; configure `VITE_ANTHROPIC_API_KEY` to route through Claude tool-calls instead.
+- 💬 **Ask the map** — natural-language commands ("M5 in Alaska", "last 3 days", "zoom to Japan", "clear filters") drive real map operations: layer definition expressions, animated fly-to, and the temporal window. Runs keyless via a pure offline parser; configure an OpenAI, OpenCode Zen, or Anthropic key to route through LLM tool-calls instead (`VITE_LLM_PROVIDER` + `VITE_LLM_API_KEY`).
 
 ## Quick start
 
@@ -41,9 +41,28 @@ Open http://localhost:5173. The app runs **without any API key** — it uses the
 
 3. Restart the dev server. You now get Esri vector basemaps plus the Search widget.
 
-### Optional: Anthropic key for "Ask the map"
+### Optional: LLM key for "Ask the map"
 
-`.env.example` documents the NLQ keys too. Leave `VITE_ANTHROPIC_API_KEY` empty and the panel uses the offline rule-based parser with no network calls; set it to route commands through Claude tool-calls. `VITE_ANTHROPIC_MODEL` overrides the default model (`claude-haiku-4-5-20251001`).
+The panel works offline by default. To route commands through an LLM, choose a provider and set its key:
+
+```env
+VITE_LLM_PROVIDER=openai   # anthropic | openai | opencode
+VITE_LLM_API_KEY=YOUR_KEY
+```
+
+| Provider | Default endpoint | Default model |
+| --- | --- | --- |
+| `anthropic` | `https://api.anthropic.com/v1/messages` | `claude-haiku-4-5-20251001` |
+| `openai` | `https://api.openai.com/v1/chat/completions` | `gpt-6-luna` |
+| `opencode` | `https://opencode.ai/zen/v1/chat/completions` | `glm-5.3-flash` |
+
+`VITE_LLM_MODEL` overrides the default model. `openai` also covers any OpenAI-compatible gateway: set `VITE_LLM_BASE_URL` and the app appends `/chat/completions` (or `/messages` for `anthropic`) when the path is missing. OpenCode Go keys use the same provider with `VITE_LLM_BASE_URL=https://opencode.ai/zen/go/v1` and a model available to Go.
+
+`opencode` calls OpenCode Zen's OpenAI-compatible Chat Completions endpoint. If you override the model, choose one served there (for example `glm-5.3-flash`, `kimi-k2.7-code`, or `deepseek-v4.1-flash`).
+
+Provider-specific aliases work too: `VITE_OPENAI_API_KEY`, `VITE_OPENCODE_API_KEY`, and `VITE_ANTHROPIC_API_KEY` select their provider automatically, so a single key is enough. The generic `VITE_LLM_API_KEY` wins when both are set, and the legacy `VITE_ANTHROPIC_MODEL` still works. Any LLM failure falls back to the offline parser.
+
+Restart the dev server after changing `.env.local`. Vite embeds `VITE_*` values in the client bundle, so use scoped/demo keys and never commit `.env.local`. LLM calls run in the browser, so the provider must allow CORS; use `VITE_LLM_BASE_URL` to point at a proxy if needed.
 
 ## Scripts
 
@@ -76,11 +95,11 @@ src/
 │   └── StatusBar.tsx  #   live center/zoom/scale readout + in-view counts
 ├── hooks/
 │   ├── useLayerVisibility.ts    # pure toggle state logic
-│   ├── useNlqRunner.ts          # NLQ executor lifecycle (offline parser or Claude)
+│   ├── useNlqRunner.ts          # NLQ executor lifecycle (offline parser or LLM)
 │   ├── useSettledAnnouncement.ts # debounced screen-reader narration
 │   └── useUrlMapState.ts        # URL-hash persistence
 ├── lib/
-│   ├── arcgis.ts      # env config (API keys), esriConfig wiring
+│   ├── arcgis.ts      # ArcGIS env config + esriConfig wiring
 │   ├── basemaps.ts    # basemap option data
 │   ├── createMapController.ts # SDK factory: Map, MapView, widgets, watchers
 │   ├── eonet.ts       # NASA EONET fetch + property flattening
@@ -89,9 +108,10 @@ src/
 │   ├── layers.ts      # layer descriptors, popup HTML, renderers, ISS polling
 │   ├── urlState.ts    # shareable URL-hash parsing and serialisation
 │   └── nlq/
-│       ├── execute.ts # intent → map operations
-│       ├── llm.ts     # optional Claude tool-call path
-│       └── parser.ts  # offline rule-based parser + region table
+│       ├── execute.ts   # intent → map operations
+│       ├── llm.ts       # optional LLM tool-call path (Anthropic/OpenAI/OpenCode)
+│       ├── llmConfig.ts # provider/key/model resolution for the optional LLM path
+│       └── parser.ts    # offline rule-based parser + region table
 └── types/calcite.d.ts # Calcite web components in React's JSX type space
 ```
 

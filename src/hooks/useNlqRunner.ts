@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { anthropicApiKey, anthropicModel, hasAnthropicKey } from '../lib/arcgis'
 import type { MapController } from '../lib/createMapController'
 import { createNlqExecutor } from '../lib/nlq/execute'
 import { intentFromLlm } from '../lib/nlq/llm'
+import { llmConfig } from '../lib/nlq/llmConfig'
 import { parseNlQuery } from '../lib/nlq/parser'
 
 /**
  * Runs one natural-language command. The optional LLM path (when
- * VITE_ANTHROPIC_API_KEY is configured) produces intents; any LLM failure
- * falls back to the offline rule-based parser. The executor is memoized for
- * the session so filter state survives across commands.
+ * `VITE_LLM_*` or a provider-specific key is configured) produces intents;
+ * any LLM failure falls back to the offline rule-based parser. The executor
+ * is memoized for the session so filter state survives across commands.
  */
 export function useNlqRunner(
   getTargets: () => MapController | null,
@@ -37,9 +37,7 @@ export function useNlqRunner(
     })
     const executor = executorRef.current
     // null (no key configured, or the LLM call failed) means: offline parser.
-    const intents = hasAnthropicKey
-      ? await intentFromLlm(text, anthropicApiKey, anthropicModel)
-      : null
+    const intents = llmConfig ? await intentFromLlm(text, llmConfig) : null
     return executor(intents ?? parseNlQuery(text))
   }, [])
 }

@@ -9,9 +9,10 @@ import { StatusBar, type ExtentItem } from './components/StatusBar'
 import { useNlqRunner } from './hooks/useNlqRunner'
 import { useSettledAnnouncement } from './hooks/useSettledAnnouncement'
 import { useUrlMapState } from './hooks/useUrlMapState'
-import { apiKey, hasAnthropicKey, hasApiKey } from './lib/arcgis'
+import { apiKey, hasApiKey } from './lib/arcgis'
 import type { ExtentStats, MapController, ViewStatus } from './lib/createMapController'
 import { LAYER_DESCRIPTORS } from './lib/layers'
+import { hasLlmConfig } from './lib/nlq/llmConfig'
 
 const INITIAL_STATUS: ViewStatus = {
   zoom: null,
@@ -95,7 +96,7 @@ export function App() {
           initialZoom={initialZoom}
           timeStripOpen={timeStripOpen}
         />
-        <NlqPanel onRun={runNlQuery} llmActive={hasAnthropicKey} />
+        <NlqPanel onRun={runNlQuery} llmActive={hasLlmConfig} />
         <LayerPanel
           layers={LAYER_DESCRIPTORS}
           visibility={visibility}
