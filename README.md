@@ -5,6 +5,7 @@ A live natural-hazard watcher built with the **ArcGIS Maps SDK for JavaScript**,
 ## Features
 
 - 🗺️ **ArcGIS Maps SDK for JavaScript 5.x** via tree-shakeable ES module imports (`@arcgis/core`)
+- 🧩 **Map components, not deprecated widgets** — `<arcgis-map>` owns the view and hosts `<arcgis-home>`, `<arcgis-zoom>`, `<arcgis-search>`, `<arcgis-legend>` and `<arcgis-scale-bar>` as slotted children; the strip below it uses `<arcgis-time-slider>`. Nothing in the app logs a deprecation.
 - 🧩 **Calcite Design System** web components (`calcite-switch`, `calcite-select`, `calcite-chip`) used natively from React 19
 - 📡 **Live USGS earthquake feed** — the past 7 days worldwide as a `GeoJSONLayer`: clustered when dense, coloured by a magnitude class-break ramp, auto-refreshing every 2 minutes, with popup links to USGS event pages; plus a static Atlantic-hurricanes sample layer. Both keyless, with custom popup templates
 - 🔥 **NASA EONET natural events** — open wildfires, severe storms, and sea-and-lake ice from the last 30 days. Each category gets its own **inline vector glyph** (flame, cyclone, snowflake, volcano cone) plus a colour, so the map stays readable without relying on hue alone. Keyless.
@@ -113,7 +114,7 @@ src/
 │   ├── Header.tsx     #   brand, basemap switcher, API-key status chip
 │   ├── LayerPanel.tsx #   floating panel with per-layer toggles + ISS locate action
 │   ├── MapAnnouncer.tsx # ARIA live region narrating settled map state
-│   ├── MapContainer.tsx # owns the MapView lifecycle; syncs props imperatively
+│   ├── MapContainer.tsx # hosts <arcgis-map>; attaches the controller on view-ready
 │   ├── NlqPanel.tsx   #   "Ask the map" command panel
 │   ├── StatusBar.tsx  #   live center/zoom/scale readout + in-view counts
 │   └── VigilStat.tsx  #   React wrapper for the <vigil-stat> element
@@ -127,7 +128,7 @@ src/
 ├── lib/
 │   ├── arcgis.ts      # ArcGIS env config + esriConfig wiring
 │   ├── basemaps.ts    # basemap option data
-│   ├── createMapController.ts # SDK factory: Map, MapView, widgets, watchers
+│   ├── createMapController.ts # attaches layers, watchers, slider to a live view
 │   ├── eonet.ts       # NASA EONET fetch + property flattening
 │   ├── format.ts      # pure formatting helpers
 │   ├── icons.ts       # inline SVG glyph paths for EONET categories and ISS
@@ -141,7 +142,7 @@ src/
 └── types/calcite.d.ts # Calcite web components in React's JSX type space
 ```
 
-**Data flow:** React state (`basemap`, layer visibility) → imperative updates on the live `MapView` (`map.basemap = …`, `layer.visible = …`). The view is created exactly once per mount; props never recreate it. SDK events (`reactiveUtils.watch`) flow back into React state through a stable, rAF-throttled callback.
+**Data flow:** `<arcgis-map>` creates and destroys the `MapView`, and takes `basemap`, `center` and `zoom` as element properties, so React applies those directly. Everything that is not an element property — layer visibility, filters, the temporal window — is applied imperatively to the live view by `createMapController`, which attaches once `arcgisViewReadyChange` fires. SDK events (`reactiveUtils.watch`) flow back into React state through a stable, rAF-throttled callback, and a remount that hands over a new view disposes the old controller before attaching again.
 
 **Why this split:** everything that imports `@arcgis/core` is isolated to `lib/`, `MapContainer`, and the one network-backed integration test. UI components are framework-agnostic and unit-testable without the SDK, which is the same separation Esri's React integration guides recommend.
 
@@ -153,16 +154,18 @@ src/
 - Pure logic (formatters, popup HTML builders, URL-hash codec, EONET flattening, NLQ parser, visibility hook) has direct unit coverage
 - Component tests render the real Calcite custom elements in jsdom and assert rendered attributes; `a11y.test.tsx` runs an axe audit over every SDK-free component
 - `usgs-filter.test.ts` is a **network-backed integration test**: it loads the real USGS feed through the SDK's `GeoJSONLayer` to pin exactly when `definitionExpression` is honoured, including the case where an argued query bypasses it. It needs internet access and fails offline.
-- `MapView` itself is exercised in the browser: `createMapController` has no jsdom test, so view rendering, widget layout and fly-to are verified manually
+- `MapView` itself is exercised in the browser: `createMapController` has no jsdom test, so view rendering, component layout and fly-to are verified manually
 
 ## Known follow-ups
 
-- **Widget → component migration.** `Home`, `Legend`, `ScaleBar` and `TimeSlider` are
-  deprecated in SDK 5.x in favour of `<arcgis-*>` web components. They still work
-  and log one informational line each. Migrating them requires adopting
-  `<arcgis-map>` (the components need that parent for layout and theming), which
-  touches the view lifecycle, the time slider and the NLQ executor.
-  Tracked in [#1](https://github.com/GeorgeSuarez/arcgis-vigil/issues/1).
+- **Initial JS grew with the map components.** Adopting `<arcgis-map>` moved the
+  app off the deprecated widgets, but the components and their Lumina runtime
+  land in the entry chunk: 1.10 MB → 1.84 MB raw, 301 kB → 460 kB gzipped. A
+  future split (dynamic import of the component modules, or `manualChunks`) would
+  move that weight off the critical path without changing behaviour.
+- **Component assets load from the CDN.** The map components fetch their
+  translations and images from `js.arcgis.com` by default; vendoring them with
+  `setAssetPath` would make the deploy fully self-hosted.
 
 ## Learn more
 

@@ -4,14 +4,21 @@
  * parser both funnel into the same intents.
  */
 import type MapView from '@arcgis/core/views/MapView'
-import type TimeSlider from '@arcgis/core/widgets/TimeSlider'
+import TimeExtent from '@arcgis/core/time/TimeExtent'
 import type { AppLayer } from '../layers'
 import { listRegions, lookupRegion, NLQ_HELP, type NlqIntent } from './parser'
+
+/** The slice of the time slider the executor drives, independent of whether it
+ * is the deprecated widget or the `<arcgis-time-slider>` component. */
+export interface TimeSliderTarget {
+  fullTimeExtent: TimeExtent | null | undefined
+  timeExtent: TimeExtent | null | undefined
+}
 
 export interface NlqTargets {
   view: MapView
   layers: readonly AppLayer[]
-  timeSlider: TimeSlider | null
+  timeSlider: TimeSliderTarget | null
   refreshExtentStats: () => void
   applyQuakeFilter: (where: string | null) => void
 }
@@ -48,7 +55,7 @@ function clearFilters(ctx: IntentContext): string {
   }
   const full = ctx.targets.timeSlider?.fullTimeExtent
   if (ctx.targets.timeSlider && full?.start && full?.end) {
-    ctx.targets.timeSlider.timeExtent = { start: full.start, end: full.end }
+    ctx.targets.timeSlider.timeExtent = new TimeExtent({ start: full.start, end: full.end })
   }
   return 'Filters cleared — showing everything in the current time window.'
 }
@@ -89,10 +96,10 @@ function setTimeWindow(
     return 'The time slider is not available.'
   }
   const now = Date.now()
-  slider.timeExtent = {
+  slider.timeExtent = new TimeExtent({
     start: new Date(now - intent.startHoursAgo * HOUR_MS),
     end: new Date(now - intent.endHoursAgo * HOUR_MS),
-  }
+  })
   return intent.startHoursAgo >= 24
     ? `Showing the last ${Math.round(intent.startHoursAgo / 24)} day(s).`
     : `Showing the last ${Math.round(intent.startHoursAgo * 60)} minute(s).`

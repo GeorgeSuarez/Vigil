@@ -1,14 +1,11 @@
-import EsriMap from '@arcgis/core/Map'
-import MapView from '@arcgis/core/views/MapView'
+import type MapView from '@arcgis/core/views/MapView'
 import Point from '@arcgis/core/geometry/Point'
-import Home from '@arcgis/core/widgets/Home'
-import Legend from '@arcgis/core/widgets/Legend'
-import ScaleBar from '@arcgis/core/widgets/ScaleBar'
-import Search from '@arcgis/core/widgets/Search'
-import TimeSlider from '@arcgis/core/widgets/TimeSlider'
+import TimeExtent from '@arcgis/core/time/TimeExtent'
 import FeatureFilter from '@arcgis/core/layers/support/FeatureFilter'
 import { watch } from '@arcgis/core/core/reactiveUtils'
-import { configureArcgisSdk } from './arcgis'
+import '@arcgis/map-components/components/arcgis-time-slider'
+import type { ArcgisTimeSlider } from '@arcgis/map-components/components/arcgis-time-slider'
+import { adoptTimeSliderStyles } from './timeSliderStyles'
 import {
   buildFeatureLayers,
   createEonetLayer,
@@ -33,14 +30,10 @@ export interface ViewStatus {
 export type ExtentStats = Record<string, number>
 
 export interface CreateMapControllerOptions {
-  container: HTMLDivElement
-  basemap: string
-  apiKey: string
+  /** The live view, owned by the `<arcgis-map>` element that renders it. */
+  view: MapView
   onStatusChange: (status: ViewStatus) => void
   onExtentStats: (stats: ExtentStats) => void
-  /** Initial center as [lon, lat]; falls back to the contiguous US. */
-  initialCenter?: [number, number]
-  initialZoom?: number
   /** Host element for the TimeSlider; omitted when the UI has no time strip. */
   timeSliderHost?: HTMLDivElement | null
   /** Fires once the first ISS position has landed. */
@@ -62,12 +55,15 @@ export interface MapController {
    * when no fix has arrived yet (nothing to fly to). */
   locateIss: () => boolean
   /** Null when no time slider host was provided. */
-  timeSlider: TimeSlider | null
+  timeSlider: ArcgisTimeSlider | null
+  /** Stops the controller's own subscriptions and removes the slider element.
+   * The view itself belongs to `<arcgis-map>`, which destroys it on unmount. */
+  dispose: () => void
 }
 
-/** Contiguous US center used for the initial extent. */
-const CONUS_CENTER: [number, number] = [-98.5, 39.8]
-const DEFAULT_ZOOM = 4
+/** Contiguous US center used when the URL carries no view state. */
+export const CONUS_CENTER: [number, number] = [-98.5, 39.8]
+export const DEFAULT_ZOOM = 4
 /** Close enough to see the station against its ground track. */
 const ISS_FOCUS_ZOOM = 6
 
@@ -97,6 +93,10 @@ function startViewportTracking(view: MapView, onStatusChange: (status: ViewStatu
   watch(() => view.zoom, notify)
   watch(() => view.scale, notify)
   watch(() => view.center, notify)
+  // The view arrives ready (the `<arcgis-map>` element created and positioned
+  // it), so the watchers see no change to announce — emit the first snapshot
+  // ourselves or the status bar sits on em dashes until the user pans.
+  notify()
 }
 
 /**
@@ -234,28 +234,42 @@ async function deriveTimeRange(
 
 /** Whether the window still ends at the newest data, and so should follow it
  * as the feed refreshes. */
-function atLeadingEdge(timeSlider: TimeSlider, lastKnownEnd: Date | null): boolean {
+function atLeadingEdge(timeSlider: ArcgisTimeSlider, lastKnownEnd: Date | null): boolean {
   if (lastKnownEnd === null) return true
   const end = timeSlider.timeExtent?.end
   if (!end) return false
   return end.getTime() >= lastKnownEnd.getTime()
 }
 
+/**
+ * Creates the `<arcgis-time-slider>` component in the strip and keeps its range
+ * in step with the live feed.
+ *
+ * The component replaces the deprecated widget so nothing in the app logs a
+ * deprecation, and it renders the same TimeSlider DOM — just inside a shadow
+ * root, which is what `adoptTimeSliderStyles` exists for.
+ */
 function startTimeSlider(
   view: MapView,
   host: HTMLDivElement,
   quakeLayer: QueryableLayer,
   refreshExtentStats: () => void,
-): TimeSlider {
-  const timeSlider = new TimeSlider({ container: host, mode: 'time-window', view })
+): ArcgisTimeSlider {
+  const timeSlider = document.createElement('arcgis-time-slider')
+  timeSlider.mode = 'time-window'
+  host.append(timeSlider)
+  timeSlider.view = view
+  adoptTimeSliderStyles(timeSlider)
+
   let lastKnownEnd: Date | null = null
+  let disposed = false
 
   const applyRange = async (): Promise<void> => {
-    if (timeSlider.destroyed) return
+    if (disposed) return
     const range = await deriveTimeRange(quakeLayer)
-    if (!range || quakeLayer.destroyed || timeSlider.destroyed) return
+    if (!range || quakeLayer.destroyed || disposed) return
     // oxlint-disable-next-line react/immutability
-    timeSlider.fullTimeExtent = { start: range.start, end: range.end }
+    timeSlider.fullTimeExtent = new TimeExtent({ start: range.start, end: range.end })
     if (quakeLayer.timeInfo) {
       // oxlint-disable-next-line react/immutability
       quakeLayer.timeInfo.fullTimeExtent = { start: range.start, end: range.end }
@@ -264,10 +278,10 @@ function startTimeSlider(
     // user has deliberately narrowed away from the leading edge.
     if (atLeadingEdge(timeSlider, lastKnownEnd)) {
       // oxlint-disable-next-line react/immutability
-      timeSlider.timeExtent = {
+      timeSlider.timeExtent = new TimeExtent({
         start: timeSlider.timeExtent?.start ?? range.start,
         end: range.end,
-      }
+      })
     }
     lastKnownEnd = range.end
   }
@@ -280,6 +294,16 @@ function startTimeSlider(
     refreshExtentStats()
     void applyRange()
   })
+
+  // Detaching the element is what destroys the widget; flag it first so an
+  // in-flight range update cannot write to a detached component.
+  const markDisposed = (): void => {
+    disposed = true
+  }
+  timeSlider.addEventListener('arcgisReady', () => {
+    timeSlider.addEventListener('arcgisPropertyChange', markDisposed, { once: true })
+  })
+
   return timeSlider
 }
 
@@ -289,28 +313,17 @@ function startTimeSlider(
  * so it can be swapped or mocked without touching UI code.
  */
 export function createMapController({
-  container,
-  basemap,
-  apiKey,
+  view,
   onStatusChange,
   onExtentStats,
-  initialCenter,
-  initialZoom,
   timeSliderHost,
   onIssFix,
   onLayersChanged,
 }: CreateMapControllerOptions): MapController {
-  configureArcgisSdk(apiKey)
-
+  const map = view.map
+  if (!map) throw new Error('<arcgis-map> handed over a view without a map')
   const layers = buildFeatureLayers()
-  const map = new EsriMap({ basemap, layers })
-  const view = new MapView({
-    container,
-    map,
-    center: initialCenter ?? CONUS_CENTER,
-    zoom: initialZoom ?? DEFAULT_ZOOM,
-    popupEnabled: true,
-  })
+  map.addMany(layers)
 
   startViewportTracking(view, onStatusChange)
   const { refresh: refreshExtentStats } = startExtentCounts(view, layers, onExtentStats)
@@ -349,15 +362,9 @@ export function createMapController({
       ? startTimeSlider(view, timeSliderHost, quakeLayer, refreshExtentStats)
       : null
 
-  view.ui.add(new Home({ view }), 'top-left')
-
-  // The Search widget calls the ArcGIS World Geocoder, which requires an API key.
-  if (apiKey) {
-    view.ui.add(new Search({ view }), 'top-left')
-  }
-
-  view.ui.add(new Legend({ view }), 'bottom-left')
-  view.ui.add(new ScaleBar({ view, unit: 'dual' }), 'bottom-left')
+  // Home, Legend, Scale Bar and Search are slotted `<arcgis-*>` components in
+  // MapContainer: they need the map element as their parent for layout and
+  // theming, which is why nothing here touches view.ui any more.
 
   // Flies to the station's current position. Returns false before the first
   // poll, so the caller can leave its affordance disabled until there is
@@ -378,7 +385,16 @@ export function createMapController({
     const full = timeSlider?.fullTimeExtent
     if (!timeSlider || !full) return
     // oxlint-disable-next-line react/immutability
-    timeSlider.timeExtent = { start: full.start, end: full.end }
+    timeSlider.timeExtent = new TimeExtent({
+      start: full.start ?? undefined,
+      end: full.end ?? undefined,
+    })
+  }
+
+  // The view belongs to `<arcgis-map>`, which destroys it (and every layer with
+  // it) on unmount; the controller only releases what it created itself.
+  const dispose = (): void => {
+    timeSlider?.remove()
   }
 
   return {
@@ -389,5 +405,6 @@ export function createMapController({
     resetTimeWindow,
     locateIss,
     timeSlider,
+    dispose,
   }
 }

@@ -128,6 +128,13 @@ body {
   min-height: 0;
 }
 
+/* `<arcgis-map>` hosts the view and fills the cell it is given. */
+.map-root > arcgis-map {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
 .time-strip {
   display: flex;
   justify-content: center;
@@ -155,56 +162,11 @@ body {
   --calcite-color-border-input: color-mix(in oklch, var(--text) 60%, transparent);
 }
 
-/* Axis labels: the SDK renders them at 10px in its inherited #d1d1d1, which
-   over the #363636 band reads as a whisper. Full-strength text, a size up, and
-   tabular figures so the dates stop jittering as the window slides. The
-   `.time-strip` parent out-specifies the SDK's own slider rules regardless of
-   stylesheet order. */
-.time-strip .time-slider-host .esri-slider__tick-label {
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  margin-block-start: 20px;
-}
-
-/* Tick marks and the unfilled track were 1px hairlines at 40% gray — the
-   window's own edges were the only thing that read as a slider. */
-.time-strip .time-slider-host .esri-slider__tick {
-  background: color-mix(in oklch, var(--text) 55%, transparent);
-}
-
-.time-strip .time-slider-host .esri-slider__track {
-  background: color-mix(in oklch, var(--text) 35%, transparent);
-}
-
-/* Handles: 16px of #adadad on the band was the smallest, dimmest target on
-   screen. Bigger, ringed at full-strength text, with a halo for height; the
-   offsets keep the thumb centred on the 4px track (50% of the 1px anchor). */
-.time-strip .time-slider-host .esri-slider__thumb {
-  inline-size: 20px;
-  block-size: 20px;
-  inset-block-start: calc(50% - 10px);
-  inset-inline-start: calc(50% - 10px);
-  background: var(--bg);
-  border-color: var(--text);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--bg) 60%, transparent);
-}
-
-.time-strip .time-slider-host .esri-slider__thumb:hover {
-  inline-size: 22px;
-  block-size: 22px;
-  inset-block-start: calc(50% - 11px);
-  inset-inline-start: calc(50% - 11px);
-  border-color: var(--accent-hover);
-}
-
-/* Dragging is the interaction; the SDK's focus ring is a 1px dotted black
-   outline, invisible on this surface. */
-.time-strip .time-slider-host .esri-slider__anchor:focus-visible .esri-slider__thumb {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
+/* The TimeSlider's internals now live in `<arcgis-time-slider>`'s shadow root,
+   out of reach of a global rule. The overrides that used to sit here — axis
+   labels, ticks, track, handles, focus ring, narrow-screen gutters — moved to
+   src/elements/time-slider-internals.css, which src/lib/timeSliderStyles.ts
+   adopts into that root. */
 
 /* Restate the hidden rule: the display above would beat the UA default. */
 .time-strip[hidden] {
@@ -750,11 +712,12 @@ body {
 
 /* ---------- Narrow phones ---------- */
 
-/* The SDK widget declares `min-width: 375px`, and a 92%-of-viewport host drops
-   below that around 440px — the strip then clipped the track's last day, the
-   right thumb and the max date off the edge of `.map-area` (which clips). Give
-   the band the full width, let the widget shrink to it, and hand back the
-   gutters the SDK keeps for a desktop layout. */
+/* The SDK's TimeSlider declares `min-width: 375px`, and a 92%-of-viewport host
+   drops below that around 440px — the strip then clipped the track's last day,
+   the right thumb and the max date off the edge of `.map-area` (which clips).
+   Give the band the full width and let the slider shrink to it; the gutters the
+   SDK reserves for a desktop layout are released inside the shadow root (see
+   src/elements/time-slider-internals.css). */
 @media (max-width: 480px) {
   .time-strip {
     padding-inline: 8px;
@@ -762,24 +725,11 @@ body {
 
   .time-strip .time-slider-host {
     width: 100%;
-    /* The SDK merges its widget classes onto this very node, so the
-       `.esri-time-slider { min-width: 375px }` that used to clip the strip is
-       this element's own min-width — and it outranks the 100% above. */
+  }
+
+  /* The component carries the widget's min-width through to its own host. */
+  .time-strip .time-slider-host > arcgis-time-slider {
     min-width: 0;
-  }
-
-  /* 80px of track padding plus 70px of min/max date margins is most of a
-     phone's width. The fixed 35px transport buttons are what stays. */
-  .time-strip .time-slider-host .esri-time-slider__slider {
-    padding-inline: 20px;
-  }
-
-  .time-strip .time-slider-host .esri-time-slider__min {
-    margin-inline-start: 0;
-  }
-
-  .time-strip .time-slider-host .esri-time-slider__max {
-    margin-inline-end: 0;
   }
 
   /* Stack the keyless note: side by side, the chip eats half the card and the

@@ -19,6 +19,11 @@ import '@arcgis/core/assets/esri/themes/dark/main.css'
 import './index.css'
 
 import { App } from './App'
+import { apiKey, configureArcgisSdk } from './lib/arcgis'
+
+// Before anything renders: `<arcgis-map>` starts loading the basemap the moment
+// it connects, so the key has to be on the SDK config first.
+configureArcgisSdk(apiKey)
 
 const rootElement = document.querySelector<HTMLElement>('#root')
 if (!rootElement) throw new Error('#root element is missing from index.html')

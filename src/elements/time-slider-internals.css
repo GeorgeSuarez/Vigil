@@ -1,0 +1,80 @@
+/* Overrides for the inside of <arcgis-time-slider>.
+ *
+ * The component renders the SDK's TimeSlider into its own shadow root and
+ * exposes no `part`s, so the only way in is a stylesheet adopted into that root
+ * (see src/lib/timeSliderStyles.ts). These rules used to live in index.css and
+ * reach the same DOM; the selectors are the SDK's own class names, which is the
+ * coupling the app already accepted when it styled the widget directly.
+ *
+ * Custom properties still cascade in from the host, so `var(--text)` and the
+ * `--calcite-*` tokens the strip host sets keep working here unchanged.
+ */
+
+/* The axis is the only thing that says where in time the window sits, so its
+   labels get full-strength text a size up from the SDK's 10px default. */
+.esri-slider__tick-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-block-start: 20px;
+}
+
+/* Tick marks and the unfilled track were 1px hairlines at 40% gray, which made
+   the window's own edges the only thing that read as a slider. */
+.esri-slider__tick {
+  background: color-mix(in oklch, var(--text) 55%, transparent);
+}
+
+.esri-slider__track {
+  background: color-mix(in oklch, var(--text) 35%, transparent);
+}
+
+/* Handles: 16px of #adadad on the band was the smallest, dimmest target on
+   screen. Bigger, ringed at full-strength text, with a halo for height; the
+   offsets keep the thumb centred on the 4px track. */
+.esri-slider__thumb {
+  inline-size: 20px;
+  block-size: 20px;
+  inset-block-start: calc(50% - 10px);
+  inset-inline-start: calc(50% - 10px);
+  background: var(--bg);
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--bg) 60%, transparent);
+}
+
+.esri-slider__thumb:hover {
+  inline-size: 22px;
+  block-size: 22px;
+  inset-block-start: calc(50% - 11px);
+  inset-inline-start: calc(50% - 11px);
+  border-color: var(--accent-hover);
+}
+
+/* Dragging is the interaction; the SDK's focus ring is a 1px dotted black
+   outline, invisible on this surface. */
+.esri-slider__anchor:focus-visible .esri-slider__thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* The SDK reserves 80px of track padding and 35px date margins for a desktop
+   layout; on a phone that is most of the width. The widget root also declares
+   `min-width: 375px`, which a narrow strip cannot honour. */
+@media (max-width: 480px) {
+  .esri-time-slider {
+    min-width: 0;
+  }
+
+  .esri-time-slider__slider {
+    padding-inline: 20px;
+  }
+
+  .esri-time-slider__min {
+    margin-inline-start: 0;
+  }
+
+  .esri-time-slider__max {
+    margin-inline-end: 0;
+  }
+}

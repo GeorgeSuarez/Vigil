@@ -9,7 +9,7 @@ import { StatusBar, type ExtentItem } from './components/StatusBar'
 import { useNlqRunner } from './hooks/useNlqRunner'
 import { useSettledAnnouncement } from './hooks/useSettledAnnouncement'
 import { useUrlMapState } from './hooks/useUrlMapState'
-import { apiKey, hasApiKey } from './lib/arcgis'
+import { hasApiKey } from './lib/arcgis'
 import type { ExtentStats, MapController, ViewStatus } from './lib/createMapController'
 import { LAYER_DESCRIPTORS } from './lib/layers'
 import { hasLlmConfig } from './lib/nlq/llmConfig'
@@ -86,7 +86,7 @@ export function App() {
       <main className="app-main">
         <MapContainer
           basemap={basemap}
-          apiKey={apiKey}
+          hasApiKey={hasApiKey}
           visibility={visibility}
           onStatusChange={handleStatusChange}
           onExtentStats={handleExtentStats}
