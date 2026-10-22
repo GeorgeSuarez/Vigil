@@ -10,8 +10,11 @@
   --accent: oklch(75.4% 0.139 232.7);
   --accent-hover: color-mix(in oklch, var(--accent), white 20%);
   --radius: 12px;
-  /* Height of the time-slider band; the side panel clears it. */
-  --time-strip-block: 152px;
+  /* Height of the time-slider band; the side panel clears it. The SDK widget
+     picks its compact layout below 858px of container width, and compact rows
+     are fixed at 36 + 88 + 36 = 160px — so the band is that plus this rule's
+     vertical padding, or the playback row is sliced in half. */
+  --time-strip-block: 180px;
 
   /* Root-level reset rules (good-css). */
   interpolate-size: allow-keywords;
@@ -142,6 +145,65 @@ body {
 .time-slider-host {
   width: min(520px, 92%);
   height: 100%;
+  /* The widget paints itself from Calcite tokens whose dark-mode defaults sit
+     two shades of gray apart from its own chrome. Restating the text and
+     border tokens lifts the min/max dates, the playback icons and the axis
+     ticks at once: custom properties inherit through Calcite's shadow roots. */
+  --calcite-color-text-1: var(--text);
+  --calcite-color-text-2: var(--text);
+  --calcite-color-text-3: color-mix(in oklch, var(--text) 88%, var(--text-muted));
+  --calcite-color-border-input: color-mix(in oklch, var(--text) 60%, transparent);
+}
+
+/* Axis labels: the SDK renders them at 10px in its inherited #d1d1d1, which
+   over the #363636 band reads as a whisper. Full-strength text, a size up, and
+   tabular figures so the dates stop jittering as the window slides. The
+   `.time-strip` parent out-specifies the SDK's own slider rules regardless of
+   stylesheet order. */
+.time-strip .time-slider-host .esri-slider__tick-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-block-start: 20px;
+}
+
+/* Tick marks and the unfilled track were 1px hairlines at 40% gray — the
+   window's own edges were the only thing that read as a slider. */
+.time-strip .time-slider-host .esri-slider__tick {
+  background: color-mix(in oklch, var(--text) 55%, transparent);
+}
+
+.time-strip .time-slider-host .esri-slider__track {
+  background: color-mix(in oklch, var(--text) 35%, transparent);
+}
+
+/* Handles: 16px of #adadad on the band was the smallest, dimmest target on
+   screen. Bigger, ringed at full-strength text, with a halo for height; the
+   offsets keep the thumb centred on the 4px track (50% of the 1px anchor). */
+.time-strip .time-slider-host .esri-slider__thumb {
+  inline-size: 20px;
+  block-size: 20px;
+  inset-block-start: calc(50% - 10px);
+  inset-inline-start: calc(50% - 10px);
+  background: var(--bg);
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--bg) 60%, transparent);
+}
+
+.time-strip .time-slider-host .esri-slider__thumb:hover {
+  inline-size: 22px;
+  block-size: 22px;
+  inset-block-start: calc(50% - 11px);
+  inset-inline-start: calc(50% - 11px);
+  border-color: var(--accent-hover);
+}
+
+/* Dragging is the interaction; the SDK's focus ring is a 1px dotted black
+   outline, invisible on this surface. */
+.time-strip .time-slider-host .esri-slider__anchor:focus-visible .esri-slider__thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* Restate the hidden rule: the display above would beat the UA default. */
@@ -646,5 +708,40 @@ body {
   /* Same clearance when the sheet and the strip are both open. */
   .app-main:has(.time-strip:not([hidden])) .side-panel {
     inset-block-end: calc(var(--time-strip-block) + 12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ---------- Narrow phones ---------- */
+
+/* The SDK widget declares `min-width: 375px`, and a 92%-of-viewport host drops
+   below that around 440px — the strip then clipped the track's last day, the
+   right thumb and the max date off the edge of `.map-area` (which clips). Give
+   the band the full width, let the widget shrink to it, and hand back the
+   gutters the SDK keeps for a desktop layout. */
+@media (max-width: 480px) {
+  .time-strip {
+    padding-inline: 8px;
+  }
+
+  .time-strip .time-slider-host {
+    width: 100%;
+    /* The SDK merges its widget classes onto this very node, so the
+       `.esri-time-slider { min-width: 375px }` that used to clip the strip is
+       this element's own min-width — and it outranks the 100% above. */
+    min-width: 0;
+  }
+
+  /* 80px of track padding plus 70px of min/max date margins is most of a
+     phone's width. The fixed 35px transport buttons are what stays. */
+  .time-strip .time-slider-host .esri-time-slider__slider {
+    padding-inline: 20px;
+  }
+
+  .time-strip .time-slider-host .esri-time-slider__min {
+    margin-inline-start: 0;
+  }
+
+  .time-strip .time-slider-host .esri-time-slider__max {
+    margin-inline-end: 0;
   }
 }
