@@ -54,9 +54,9 @@ export function App() {
   }, [visibility, toggleVisibility])
 
   const [timeStripOpen, setTimeStripOpen] = useState(
-    // Open on desktop; collapsed on small screens where the strip would eat
-    // vertical space — the status-bar toggle reveals it on demand.
-    () => !window.matchMedia('(max-width: 720px)').matches,
+    // Collapsed by default at every width: the band is 180px of vertical space
+    // that the map uses better, and the status-bar clock reveals it on demand.
+    () => false,
   )
 
   const handleToggleTimeStrip = useCallback(() => {
