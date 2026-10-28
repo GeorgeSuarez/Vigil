@@ -2,16 +2,14 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { NlqPanel } from './NlqPanel'
 
-const open = (props: { hasApiKey: boolean; llmActive?: boolean }): void => {
-  render(
-    <NlqPanel onRun={vi.fn()} llmActive={props.llmActive ?? false} hasApiKey={props.hasApiKey} />,
-  )
+const open = (props: { llmActive?: boolean } = {}): void => {
+  render(<NlqPanel onRun={vi.fn()} llmActive={props.llmActive ?? false} />)
   fireEvent.click(screen.getByRole('button', { name: /open the ask-the-map panel/i }))
 }
 
 describe('NlqPanel', () => {
   it('starts as a pill and opens the card on click', () => {
-    render(<NlqPanel onRun={vi.fn()} llmActive={false} hasApiKey />)
+    render(<NlqPanel onRun={vi.fn()} llmActive={false} />)
 
     expect(screen.queryByRole('region', { name: 'Ask the map' })).toBeNull()
 
@@ -21,27 +19,20 @@ describe('NlqPanel', () => {
     expect(screen.getByText('offline rules')).toBeVisible()
   })
 
-  it('names the missing key when none is configured', () => {
-    // The keyless call-to-action lives here now, not in the header: this is the
-    // panel whose feature (LLM routing, and the map search it drives) needs one.
-    open({ hasApiKey: false })
+  it('labels the mode when the LLM path is configured', () => {
+    open({ llmActive: true })
 
-    expect(screen.getByText('No API key')).toBeVisible()
-    expect(screen.getByText('VITE_ARCGIS_API_KEY')).toBeVisible()
-    expect(screen.getByText('.env.example')).toBeVisible()
+    expect(screen.getByText('LLM')).toBeVisible()
+    expect(screen.queryByText('offline rules')).toBeNull()
   })
 
-  it('drops the hint once a key is configured', () => {
-    open({ hasApiKey: true })
+  it('keeps the card to the log and the input', () => {
+    open()
 
-    expect(screen.queryByText('No API key')).toBeNull()
-    expect(screen.queryByText(/VITE_ARCGIS_API_KEY/)).toBeNull()
-  })
-
-  it('keeps the hint out of the live log so it is not announced on open', () => {
-    open({ hasApiKey: false })
-
-    const log = screen.getByRole('log')
-    expect(log.textContent).not.toContain('VITE_ARCGIS_API_KEY')
+    const card = screen.getByRole('region', { name: 'Ask the map' })
+    expect(card.querySelector('[role="log"]')).toBeInTheDocument()
+    expect(card.querySelector('form')).toBeInTheDocument()
+    // Rendered copy is limited to the prompt hint, not configuration advice.
+    expect(card.textContent).not.toContain('VITE_')
   })
 })

@@ -4,7 +4,7 @@ import type UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer
 import {
   buildEonetEventPopupHtml,
   buildFeatureLayers,
-  buildHurricanePopupHtml,
+  buildStormPopupHtml,
   buildIssPopupHtml,
   buildQuakePopupHtml,
   createEonetLayer,
@@ -12,8 +12,8 @@ import {
   type EonetEventAttributes,
   type IssAttributes,
   LAYER_DESCRIPTORS,
-  type FeatureLayer,
   type GeoJSONLayer,
+  type MapImageLayer,
   type QuakeAttributes,
 } from './layers'
 
@@ -28,27 +28,23 @@ describe('LAYER_DESCRIPTORS', () => {
 })
 
 describe('buildFeatureLayers', () => {
-  it('builds the live USGS feed layer with epoch timeInfo, and a service layer without', () => {
+  it('builds the live USGS feed with epoch timeInfo, and a server-rendered NHC layer', () => {
     const layers = buildFeatureLayers()
-    const quakes = layers.find(
-      (l): l is FeatureLayer | GeoJSONLayer => l.type !== 'graphics' && l.id === 'earthquakes',
-    )
-    const storms = layers.find(
-      (l): l is FeatureLayer | GeoJSONLayer => l.type !== 'graphics' && l.id === 'hurricanes',
-    )
-    expect(quakes?.type).toBe('geojson')
+    const quakes = layers.find((l): l is GeoJSONLayer => l.type === 'geojson')
+    const nhc = layers.find((l): l is MapImageLayer => l.type === 'map-image')
+    expect(quakes?.id).toBe('earthquakes')
     expect(quakes?.timeInfo?.startField).toBe('time')
-    expect(storms?.type).toBe('feature')
-    // Service layers keep timeInfo null until the service publishes one at load;
-    // the Hurricanes sample service does not.
-    expect(storms?.timeInfo).toBeNull()
+    // NHC's cones render server-side, so the layer carries no feature timeInfo.
+    expect(nhc?.id).toBe('nhc')
+    expect(nhc?.url).toContain('mapservices.weather.noaa.gov/tropical')
   })
 
-  it('leaves EONET out of the startup layers, and includes the ISS marker', () => {
+  it('leaves the fetched feeds out of the startup layers, and includes the ISS marker', () => {
     const layers = buildFeatureLayers()
-    // EONET is created from flattened data once the feed arrives — a layer
-    // never reloads after load, so it cannot be a placeholder.
+    // EONET and GDACS are created from flattened data once their feeds arrive —
+    // a layer never reloads after load, so neither can be a placeholder.
     expect(layers.some((l) => l.id === 'eonet')).toBe(false)
+    expect(layers.some((l) => l.id === 'storms')).toBe(false)
     const iss = layers.find((l) => l.type === 'graphics')
     expect(iss?.id).toBe('iss')
   })
@@ -105,6 +101,7 @@ describe('buildEonetEventPopupHtml', () => {
     magnitudeValue: null,
     magnitudeUnit: null,
     category: 'Wildfires',
+    categoryId: 'wildfires',
     sourceName: 'NIFS',
     sourceUrl: 'https://nifs.example.com/fire/6001',
   }
@@ -130,6 +127,21 @@ describe('buildEonetEventPopupHtml', () => {
     // Magnitude adds a row; dropping both links removes two, so category +
     // updated + magnitude remain.
     expect((html.match(/<div>/g) ?? []).length).toBe(3)
+  })
+
+  it('labels storm wind and derives the category for severe storms', () => {
+    const html = buildEonetEventPopupHtml({
+      ...attrs,
+      category: 'Severe Storms',
+      categoryId: 'severeStorms',
+      magnitudeValue: 95,
+      magnitudeUnit: 'kts',
+    })
+    expect(html).toContain('Storm category')
+    expect(html).toContain('Category 2')
+    expect(html).toContain('Max wind')
+    expect(html).toContain('95 kts')
+    expect(html).not.toContain('Magnitude')
   })
 })
 
@@ -180,17 +192,38 @@ describe('buildQuakePopupHtml', () => {
   })
 })
 
-describe('buildHurricanePopupHtml', () => {
-  it('formats wind speed and pressure with units', () => {
-    const html = buildHurricanePopupHtml({
-      EVENTID: 42,
-      STAGE: 'Hurricane',
-      WINDSPEED: 115,
-      PRESSURE: 950,
-      Date_Time: null,
+describe('buildStormPopupHtml', () => {
+  const attrs = {
+    eventId: 1001338,
+    name: 'CHAMPI-26',
+    alertLevel: 'Red',
+    windKmh: 296.2944,
+    severityText: 'Hurricane/Typhoon > 74 mph (maximum wind speed of 296 km/h)',
+    countries: 'Philippines, Guam, Japan',
+    dateMs: Date.UTC(2026, 9, 23, 0, 30),
+    reportUrl: 'https://www.gdacs.org/report.aspx?eventid=1001338',
+    trackUrl:
+      'https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=TC&eventid=1001338&episodeid=34',
+  }
+
+  it('derives the Saffir–Simpson category from the km/h wind speed', () => {
+    const html = buildStormPopupHtml(attrs)
+    expect(html).toContain('Category 5')
+    expect(html).toContain('296 km/h')
+    expect(html).toContain('Red')
+    expect(html).toContain('Philippines')
+    expect(html).toContain('gdacs.org/report.aspx')
+  })
+
+  it('dashes out missing values instead of guessing', () => {
+    const html = buildStormPopupHtml({
+      ...attrs,
+      alertLevel: null,
+      windKmh: null,
+      countries: null,
+      reportUrl: null,
     })
-    expect(html).toContain('Hurricane')
-    expect(html).toContain('115 kt')
-    expect(html).toContain('950 mb')
+    expect(html).toContain('—')
+    expect(html).not.toContain('GDACS report')
   })
 })

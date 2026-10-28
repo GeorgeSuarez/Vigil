@@ -239,7 +239,8 @@ body {
 
 .side-panel {
   inset-block-start: 16px;
-  inset-inline-end: 16px;
+  /* Left rail: the map's own controls live on the right (see MapContainer). */
+  inset-inline-start: 16px;
   /* Sits above the map, clearing the time strip when it is showing. */
   inset-block-end: 16px;
   width: min(300px, 80vw);
@@ -250,6 +251,101 @@ body {
   overflow-y: auto;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out,
+    visibility 0s linear;
+}
+
+/* A popup carries the detail the panel would hide, and the SDK gives popups no
+   way to avoid an app-owned overlay, so the panel steps aside while one is open.
+   src/lib/popupYield.ts toggles the attribute and marks the panel `inert`, which
+   also takes it out of the tab order and the accessibility tree. The legend goes
+   with it: on a phone it is wide enough to cover the popup on its own. */
+.app-main[data-popup-open] .side-panel {
+  opacity: 0;
+  /* Slid out to the left edge, where the panel is parked. */
+  transform: translateX(calc(-100% - 24px));
+  visibility: hidden;
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out,
+    visibility 0s linear 180ms;
+}
+
+arcgis-expand,
+arcgis-scale-bar {
+  transition:
+    opacity 180ms ease-out,
+    visibility 0s linear;
+}
+
+/* ---------- Hover-reveal layer panel ---------- */
+
+/* With a mouse, the panel parks itself at the right edge as a tab and slides in
+   when the pointer is over it, so the map stays unobstructed. The parked tab is
+   still 18px wide and hoverable, which is what brings the panel back.
+
+   Keyboard users get the same reveal without a mouse: the panel's own controls
+   stay in the tab order (only opacity is zeroed, never visibility), so the first
+   Tab into the panel matches `:focus-within` and slides it in. Touch and narrow
+   screens keep the sheet always visible — there is no hover to bring it back. */
+@media (hover: hover) and (pointer: fine) and (min-width: 721px) {
+  .side-panel {
+    transform: translateX(calc(-100% + 28px));
+    transition:
+      transform 180ms ease-out,
+      opacity 180ms ease-out;
+  }
+
+  .side-panel > * {
+    opacity: 0;
+    transition: opacity 140ms ease-out;
+  }
+
+  .side-panel:hover,
+  .side-panel:focus-within {
+    transform: none;
+  }
+
+  .side-panel:hover > *,
+  .side-panel:focus-within > * {
+    opacity: 1;
+  }
+
+  /* The parked edge carries its own label, so the tab reads as a handle rather
+     than a clipped card. Physical offsets on purpose: inside a vertical writing
+     mode the logical ones rotate with the text and land the label at the panel's
+     top-left instead of the visible strip. The strip is the panel's right edge
+     now, because the panel is parked against the left of the map. */
+  .side-panel::after {
+    content: 'LAYERS';
+    position: absolute;
+    top: 20px;
+    right: 8px;
+    left: auto;
+    writing-mode: vertical-rl;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: opacity 140ms ease-out;
+  }
+
+  .side-panel:hover::after,
+  .side-panel:focus-within::after {
+    opacity: 0;
+  }
+}
+
+.app-main[data-popup-open] arcgis-expand,
+.app-main[data-popup-open] arcgis-scale-bar {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 180ms ease-out,
+    visibility 0s linear 180ms;
 }
 
 /* The strip is a sibling band under the map, so reserve its height — without
@@ -625,40 +721,6 @@ body {
   color: var(--text-muted);
 }
 
-/* Keyless call-to-action. It used to be a chip in the header, where a 12px
-   tooltip was the only place the fix was named — unreachable on touch. Here it
-   sits next to the feature the missing key actually gates, spelled out. */
-.nlq-key-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  background: color-mix(in oklch, var(--text) 4%, transparent);
-}
-
-.nlq-key-copy {
-  margin: 0;
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: var(--text-muted);
-}
-
-.nlq-key-copy code {
-  padding: 0 3px;
-  border-radius: 4px;
-  background: color-mix(in oklch, var(--text) 10%, transparent);
-  color: var(--text);
-  font-size: 11px;
-}
-
-/* The chip is a flex item here, so stop it shrinking to its icon when the copy
-   wraps at 320px. */
-.nlq-key-hint > calcite-chip {
-  flex: none;
-}
-
 .nlq-entry {
   display: flex;
   flex-direction: column;
@@ -708,6 +770,11 @@ body {
   .app-main:has(.time-strip:not([hidden])) .side-panel {
     inset-block-end: calc(var(--time-strip-block) + 12px + env(safe-area-inset-bottom, 0px));
   }
+
+  /* The sheet drops away instead of sliding sideways. */
+  .app-main[data-popup-open] .side-panel {
+    transform: translateY(calc(100% + 24px));
+  }
 }
 
 /* ---------- Narrow phones ---------- */
@@ -730,12 +797,5 @@ body {
   /* The component carries the widget's min-width through to its own host. */
   .time-strip .time-slider-host > arcgis-time-slider {
     min-width: 0;
-  }
-
-  /* Stack the keyless note: side by side, the chip eats half the card and the
-     copy wraps to five short lines. */
-  .nlq-key-hint {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }

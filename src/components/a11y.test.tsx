@@ -44,7 +44,7 @@ describe('component accessibility (axe)', () => {
   })
 
   it('the NLQ panel has no violations', async () => {
-    const { container } = render(<NlqPanel onRun={vi.fn()} llmActive={false} hasApiKey={false} />)
+    const { container } = render(<NlqPanel onRun={vi.fn()} llmActive={false} />)
     await expectNoAxeViolations(container as HTMLElement)
   })
 

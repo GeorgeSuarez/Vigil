@@ -166,6 +166,16 @@ src/
 - **Component assets load from the CDN.** The map components fetch their
   translations and images from `js.arcgis.com` by default; vendoring them with
   `setAssetPath` would make the deploy fully self-hosted.
+- **One deprecated feature is reported in this app but not caused by it.**
+  Chrome's Issues panel flags `imageOrientation: 'none'` in `createImageBitmap`.
+  Nothing here calls it: the call is inside `@arcgis/core`'s image utility
+  (`createImageBitmap(e, { imageOrientation: t?.imageOrientation ?? \`none\` })`,
+  bundled as `imageBitmapUtils-*.js`), and 5.1.27 is the newest stable core. The
+  obvious workarounds are both worse — swapping the value changes EXIF handling
+  for every decoded image, and shimming `window.createImageBitmap` would rewrite
+  a browser API for the whole page. Cesium hit the same deprecation and reverted
+  its fix because older browsers only accept the old value. It is a DevTools
+  notice, not a console error, and nothing renders differently.
 
 ## Learn more
 

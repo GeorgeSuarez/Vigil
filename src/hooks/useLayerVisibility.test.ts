@@ -9,17 +9,19 @@ describe('useLayerVisibility', () => {
     const [visibility] = result.current
     expect(visibility).toEqual({
       earthquakes: true,
-      hurricanes: false,
+      nhc: false,
+      storms: true,
       eonet: true,
       iss: true,
     })
   })
 
   it('uses initialVisibleIds over descriptor defaults when provided', () => {
-    const { result } = renderHook(() => useLayerVisibility(LAYER_DESCRIPTORS, ['hurricanes']))
+    const { result } = renderHook(() => useLayerVisibility(LAYER_DESCRIPTORS, ['storms']))
     expect(result.current[0]).toEqual({
       earthquakes: false,
-      hurricanes: true,
+      nhc: false,
+      storms: true,
       eonet: false,
       iss: false,
     })
@@ -27,11 +29,11 @@ describe('useLayerVisibility', () => {
 
   it('toggles a layer', () => {
     const { result } = renderHook(() => useLayerVisibility(LAYER_DESCRIPTORS))
-    act(() => result.current[1]('hurricanes', true))
-    expect(result.current[0].hurricanes).toBe(true)
+    act(() => result.current[1]('nhc', true))
+    expect(result.current[0].nhc).toBe(true)
 
     act(() => result.current[1]('earthquakes', false))
     expect(result.current[0].earthquakes).toBe(false)
-    expect(result.current[0].hurricanes).toBe(true)
+    expect(result.current[0].nhc).toBe(true)
   })
 })

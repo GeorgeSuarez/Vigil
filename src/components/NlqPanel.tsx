@@ -6,10 +6,6 @@ export interface NlqPanelProps {
   onRun: (text: string) => Promise<string>
   /** Whether the optional LLM path is configured (vs the keyless parser). */
   llmActive: boolean
-  /** Whether an ArcGIS API key is configured; when not, the panel explains what
-   * is missing. The key gates map search and the Esri basemaps, so this panel is
-   * where a user notices its absence. */
-  hasApiKey: boolean
 }
 
 interface Entry {
@@ -18,7 +14,7 @@ interface Entry {
 }
 
 /** Floating "Ask the map" panel: natural-language commands drive the map. */
-export function NlqPanel({ onRun, llmActive, hasApiKey }: NlqPanelProps) {
+export function NlqPanel({ onRun, llmActive }: NlqPanelProps) {
   const [open, setOpen] = useState(false)
   const [entries, setEntries] = useState<readonly Entry[]>([])
   const [busy, setBusy] = useState(false)
@@ -88,18 +84,6 @@ export function NlqPanel({ onRun, llmActive, hasApiKey }: NlqPanelProps) {
           </div>
         ))}
       </div>
-
-      {!hasApiKey && (
-        <div className="nlq-key-hint">
-          <calcite-chip scale="s" kind="neutral" icon="key" label="No API key">
-            No API key
-          </calcite-chip>
-          <p className="nlq-key-copy">
-            Map search and the Esri basemaps stay off. Add <code>VITE_ARCGIS_API_KEY</code> to{' '}
-            <code>.env.local</code> (see <code>.env.example</code>) and rebuild.
-          </p>
-        </div>
-      )}
 
       <form className="nlq-form" onSubmit={(e) => void submit(e)}>
         <input

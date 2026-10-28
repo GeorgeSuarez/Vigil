@@ -3,12 +3,24 @@ import Graphic from '@arcgis/core/Graphic'
 import Point from '@arcgis/core/geometry/Point'
 import GeoJSONLayer from '@arcgis/core/layers/GeoJSONLayer'
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
+import MapImageLayer from '@arcgis/core/layers/MapImageLayer'
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer'
 import ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer'
 import UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer'
+import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer'
 import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol'
+import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol'
 import TimeInfo from '@arcgis/core/layers/support/TimeInfo'
 import { formatEpoch, formatNullable } from './format'
+import { saffirSimpson } from './hurricane'
+import {
+  GDACS_STORMS_URL,
+  toStormDataUrl,
+  toTrackDataUrl,
+  type StormFeatureCollection,
+  type StormProperties,
+  type StormTrack,
+} from './gdacs'
 import { ICON_PATHS, ICON_OUTLINE_COLOR, ICON_SIZE } from './icons'
 import {
   EONET_FEED_URL,
@@ -20,10 +32,12 @@ import {
 export type { FeatureLayer }
 export type { GeoJSONLayer }
 export type { GraphicsLayer }
+export type { MapImageLayer }
 
 /** Concrete layer types used by the app. Feature layers power popups,
- * renderers, and stats queries; the graphics layer hosts the ISS marker. */
-export type AppLayer = FeatureLayer | GeoJSONLayer | GraphicsLayer
+ * renderers, and stats queries; the graphics layer hosts the ISS marker; the
+ * map image layer draws NHC's forecast cones, whose symbology is server-side. */
+export type AppLayer = FeatureLayer | GeoJSONLayer | MapImageLayer | GraphicsLayer
 
 /** Static, testable description of a dataset shown in the layer panel. */
 export interface LayerDescriptor {
@@ -33,7 +47,7 @@ export interface LayerDescriptor {
   shortTitle: string
   description: string
   /** Where the layer's data comes from — decides which factory recipe builds it. */
-  kind: 'geojson' | 'service' | 'eonet' | 'iss'
+  kind: 'geojson' | 'mapimage' | 'gdacs' | 'eonet' | 'iss'
   /** ArcGIS REST Feature Service endpoint, or a public GeoJSON feed URL. */
   url: string
   defaultVisible: boolean
@@ -47,8 +61,10 @@ const ISS_FEED_URL = 'https://api.wheretheiss.at/v1/satellites/25544'
 
 /**
  * The quakes layer streams the live USGS feed (past 7 days, worldwide) and
- * auto-refreshes. EONET streams NASA's open natural events. The hurricanes
- * layer is a static Esri sample service. The ISS marker is polled live.
+ * auto-refreshes. EONET streams NASA's open natural events, GDACS adds the
+ * global tropical-cyclone picture (including the Western Pacific typhoons NHC
+ * does not cover), and NHC contributes live forecast cones for the Atlantic and
+ * East Pacific. The ISS marker is polled live.
  */
 export const LAYER_DESCRIPTORS: readonly LayerDescriptor[] = [
   {
@@ -61,13 +77,22 @@ export const LAYER_DESCRIPTORS: readonly LayerDescriptor[] = [
     defaultVisible: true,
   },
   {
-    id: 'hurricanes',
-    title: 'Atlantic Hurricanes, 2000',
-    shortTitle: 'storms',
-    description: 'Storm fixes with pressure and wind speed.',
-    kind: 'service',
-    url: 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Hurricanes/MapServer/0',
+    id: 'nhc',
+    title: 'NHC forecast cones — live',
+    shortTitle: 'NHC',
+    description: 'Active Atlantic and East Pacific tracks and cones.',
+    kind: 'mapimage',
+    url: 'https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather/MapServer',
     defaultVisible: false,
+  },
+  {
+    id: 'storms',
+    title: 'Tropical cyclones — GDACS (live)',
+    shortTitle: 'storms',
+    description: 'Global storms, sized by GDACS alert level.',
+    kind: 'gdacs',
+    url: GDACS_STORMS_URL,
+    defaultVisible: true,
   },
   {
     id: 'eonet',
@@ -100,14 +125,8 @@ export interface QuakeAttributes {
   tsunami: number | null
 }
 
-/** Attribute shape of the Hurricanes sample layer (subset we render). */
-export interface HurricaneAttributes {
-  EVENTID: number | null
-  STAGE: string | null
-  WINDSPEED: number | null
-  PRESSURE: number | null
-  Date_Time: number | null
-}
+/** Attribute shape of a GDACS storm after flattening (see lib/gdacs.ts). */
+export type StormAttributes = StormProperties
 
 /** Attribute shape of an EONET event after flattening (see lib/eonet.ts).
  * Scalars only — GeoJSONLayer drops object/array properties. */
@@ -121,6 +140,8 @@ export interface EonetEventAttributes {
   magnitudeUnit: string | null
   /** Category title, e.g. "Wildfires" — the renderer's style field. */
   category: string | null
+  /** Category id, e.g. "severeStorms" — what the popup uses to tell storms apart. */
+  categoryId: string | null
   sourceName: string | null
   sourceUrl: string | null
 }
@@ -168,17 +189,22 @@ export function buildQuakePopupHtml(a: QuakeAttributes): string {
   ].join('')
 }
 
-/** Builds the HTML shown in a hurricane popup. Pure so it can be unit-tested. */
-export function buildHurricanePopupHtml(a: HurricaneAttributes): string {
+/** Builds the HTML shown in a storm popup. Pure so it can be unit-tested. */
+export function buildStormPopupHtml(a: StormProperties): string {
+  const category = saffirSimpson(a.windKmh, 'km/h')
+  const wind = a.windKmh === null ? null : `${Math.round(a.windKmh)} km/h`
+  const updated = a.dateMs === null ? null : formatEpoch(a.dateMs)
+  const report = a.reportUrl
+    ? `<div><dt>Details</dt><dd><a href="${a.reportUrl}" target="_blank" rel="noopener noreferrer">GDACS report</a></dd></div>`
+    : ''
   return [
     `<dl class="popup-facts">`,
-    `<div><dt>Stage</dt><dd>${formatNullable(a.STAGE)}</dd></div>`,
-    `<div><dt>Wind speed</dt><dd>${formatNullable(
-      a.WINDSPEED === null ? null : `${a.WINDSPEED} kt`,
-    )}</dd></div>`,
-    `<div><dt>Pressure</dt><dd>${formatNullable(
-      a.PRESSURE === null ? null : `${a.PRESSURE} mb`,
-    )}</dd></div>`,
+    `<div><dt>Storm category</dt><dd>${formatNullable(category)}</dd></div>`,
+    `<div><dt>Max wind</dt><dd>${formatNullable(wind)}</dd></div>`,
+    `<div><dt>Alert level</dt><dd>${formatNullable(a.alertLevel)}</dd></div>`,
+    `<div><dt>Updated (UTC)</dt><dd>${formatNullable(updated)}</dd></div>`,
+    ...(a.countries ? [`<div><dt>Affected</dt><dd>${a.countries}</dd></div>`] : []),
+    report,
     `</dl>`,
   ].join('')
 }
@@ -191,16 +217,23 @@ export function eonetEventPageUrl(link: string | null): string | null {
 /** Builds the HTML shown in an EONET event popup. Pure so it can be unit-tested. */
 export function buildEonetEventPopupHtml(a: EonetEventAttributes): string {
   const date = formatNullable(a.dateMs === null ? null : formatEpoch(a.dateMs))
-  const magnitude =
+  // Storms report wind, not a magnitude: the row is labelled for what it is and
+  // the category is derived, because EONET only knows the hazard family.
+  const isStorm = a.categoryId === 'severeStorms' || a.category === 'Severe Storms'
+  const wind =
     a.magnitudeValue === null || a.magnitudeValue === undefined
       ? null
       : `${a.magnitudeValue} ${a.magnitudeUnit ?? ''}`.trim()
+  const stormCategory = isStorm ? saffirSimpson(a.magnitudeValue, a.magnitudeUnit) : null
+  const categoryLabel = isStorm ? 'Storm category' : 'Category'
+  const categoryValue = isStorm ? stormCategory : a.category
+  const windLabel = isStorm ? 'Max wind' : 'Magnitude'
   const pageUrl = eonetEventPageUrl(a.link)
   return [
     `<dl class="popup-facts">`,
-    `<div><dt>Category</dt><dd>${formatNullable(a.category)}</dd></div>`,
+    `<div><dt>${categoryLabel}</dt><dd>${formatNullable(categoryValue)}</dd></div>`,
     `<div><dt>Updated (UTC)</dt><dd>${date}</dd></div>`,
-    ...(magnitude ? [`<div><dt>Magnitude</dt><dd>${formatNullable(magnitude)}</dd></div>`] : []),
+    ...(wind ? [`<div><dt>${windLabel}</dt><dd>${formatNullable(wind)}</dd></div>`] : []),
     ...(pageUrl
       ? [
           `<div><dt>Details</dt><dd><a href="${pageUrl}" target="_blank" rel="noopener noreferrer">EONET event page</a></dd></div>`,
@@ -233,10 +266,10 @@ const quakePopupTemplate = new PopupTemplate({
   content: ({ graphic }) => buildQuakePopupHtml(graphic.attributes as QuakeAttributes),
 })
 
-const hurricanePopupTemplate = new PopupTemplate({
-  title: 'Hurricane event {EVENTID}',
-  outFields: ['EVENTID', 'STAGE', 'WINDSPEED', 'PRESSURE'],
-  content: ({ graphic }) => buildHurricanePopupHtml(graphic.attributes as HurricaneAttributes),
+const stormPopupTemplate = new PopupTemplate({
+  title: '{name}',
+  outFields: ['name', 'alertLevel', 'windKmh', 'countries', 'dateMs', 'reportUrl'],
+  content: ({ graphic }) => buildStormPopupHtml(graphic.attributes as StormProperties),
 })
 
 const eonetPopupTemplate = new PopupTemplate({
@@ -326,6 +359,75 @@ export async function loadEonetEvents(): Promise<EonetFeatureCollection | null> 
   } catch {
     return null
   }
+}
+
+/** Scalar fields produced by flattenGdacsStorms. Declared so the layer types
+ * them itself instead of inferring (and dropping) from the payload. */
+const STORM_FIELDS = [
+  { name: 'eventId', type: 'double' },
+  { name: 'name', type: 'string' },
+  { name: 'alertLevel', type: 'string' },
+  { name: 'windKmh', type: 'double' },
+  { name: 'severityText', type: 'string' },
+  { name: 'countries', type: 'string' },
+  { name: 'dateMs', type: 'double' },
+  { name: 'reportUrl', type: 'string' },
+  { name: 'trackUrl', type: 'string' },
+] as const
+
+/** GDACS alert level drives the symbol: hue and size carry it together, so the
+ * map still reads without colour. */
+function stormRenderer(): UniqueValueRenderer {
+  return new UniqueValueRenderer({
+    field: 'alertLevel',
+    uniqueValueInfos: [
+      { value: 'Red', symbol: iconSymbol(ICON_PATHS.storm, '#e5544b', 22) },
+      { value: 'Orange', symbol: iconSymbol(ICON_PATHS.storm, '#f8a13c', 18) },
+      { value: 'Green', symbol: iconSymbol(ICON_PATHS.storm, '#7f8cff', 14) },
+    ],
+    defaultSymbol: iconSymbol(ICON_PATHS.storm, '#8b98a9', 12),
+  })
+}
+
+/** Builds the GDACS storm layer from an already-flattened collection. Same
+ * construction-time rule as EONET: the data has to exist when the layer is built. */
+export function createStormsLayer(
+  descriptor: LayerDescriptor,
+  collection: StormFeatureCollection,
+): GeoJSONLayer {
+  return new GeoJSONLayer({
+    id: descriptor.id,
+    title: descriptor.title,
+    url: toStormDataUrl(collection),
+    visible: descriptor.defaultVisible,
+    geometryType: 'point',
+    fields: STORM_FIELDS.map((field) => ({ ...field })),
+    renderer: stormRenderer(),
+    popupTemplate: stormPopupTemplate,
+  })
+}
+
+/** Id of the transient layer that draws the selected storm's wind radii. */
+export const STORM_TRACK_LAYER_ID = 'storm-track'
+
+/** The selected storm's forecast/wind-radii polygons, drawn under the storm
+ * points and cleared when the popup closes. Built from geometry that has already
+ * been fetched: a failing GeoJSONLayer logs an SDK error, and a slow feed should
+ * not produce console noise. */
+export function createStormTrackLayer(track: StormTrack): GeoJSONLayer {
+  return new GeoJSONLayer({
+    id: STORM_TRACK_LAYER_ID,
+    title: 'Storm track and wind radii',
+    url: toTrackDataUrl(track),
+    visible: true,
+    popupEnabled: false,
+    renderer: new SimpleRenderer({
+      symbol: new SimpleFillSymbol({
+        color: [127, 140, 255, 0.12],
+        outline: { color: [127, 140, 255, 0.55], width: 1, style: 'dash' },
+      }),
+    }),
+  })
 }
 
 /** Category color coding for the EONET feed — value comes from the flattened
@@ -427,12 +529,13 @@ const QUAKE_FIELDS = [
   { name: 'url', type: 'string' },
 ] as const
 
-/** Creates the live layer instances described by LAYER_DESCRIPTORS. EONET is
- * absent here: it is created from flattened data once the feed arrives. */
+/** Creates the live layer instances described by LAYER_DESCRIPTORS. EONET and
+ * GDACS are absent here: their layers are built from flattened data once the
+ * feed arrives, because a layer never reloads after it has loaded. */
 export function buildFeatureLayers(): AppLayer[] {
   const layers: AppLayer[] = []
   for (const d of LAYER_DESCRIPTORS) {
-    if (d.kind === 'eonet') continue
+    if (d.kind === 'eonet' || d.kind === 'gdacs') continue
     if (d.kind === 'iss') {
       layers.push(buildIssLayer(d))
       continue
@@ -455,15 +558,18 @@ export function buildFeatureLayers(): AppLayer[] {
       )
       continue
     }
-    layers.push(
-      new FeatureLayer({
-        id: d.id,
-        title: d.title,
-        url: d.url,
-        visible: d.defaultVisible,
-        popupTemplate: hurricanePopupTemplate,
-      }),
-    )
+    if (d.kind === 'mapimage') {
+      layers.push(
+        new MapImageLayer({
+          id: d.id,
+          title: d.title,
+          url: d.url,
+          visible: d.defaultVisible,
+          // Server-side symbology; a little transparency keeps the basemap legible.
+          opacity: 0.85,
+        }),
+      )
+    }
   }
   return layers
 }

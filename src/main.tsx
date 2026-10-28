@@ -15,7 +15,6 @@ import '@esri/calcite-components/components/calcite-select'
 import '@esri/calcite-components/components/calcite-switch'
 
 import '@esri/calcite-components/main.css'
-import '@arcgis/core/assets/esri/themes/dark/main.css'
 import './index.css'
 
 import { App } from './App'

@@ -9,6 +9,8 @@ import { adoptTimeSliderStyles } from './timeSliderStyles'
 import {
   buildFeatureLayers,
   createEonetLayer,
+  createStormsLayer,
+  createStormTrackLayer,
   loadEonetEvents,
   startIssTracking,
   LAYER_DESCRIPTORS,
@@ -17,6 +19,7 @@ import {
   type GeoJSONLayer,
   type GraphicsLayer,
 } from './layers'
+import { loadGdacsStorms, loadStormTrack, type StormProperties, type StormTrack } from './gdacs'
 
 /** Snapshot of view state surfaced in the status bar. */
 export interface ViewStatus {
@@ -72,7 +75,9 @@ const ISS_FOCUS_ZOOM = 6
 type QueryableLayer = FeatureLayer | GeoJSONLayer
 
 function isQueryableLayer(layer: AppLayer): layer is QueryableLayer {
-  return layer.type !== 'graphics'
+  // Map-image layers render server-side and expose no feature queries, and the
+  // graphics layer is render-only, so neither belongs in the stats pipeline.
+  return layer.type === 'feature' || layer.type === 'geojson'
 }
 
 /** Throttles status updates to one per animation frame. */
@@ -355,6 +360,18 @@ export function createMapController({
     refreshExtentStats()
   })
 
+  // GDACS follows the same construction-time rule as EONET, and it is the only
+  // feed with global tropical cyclones (the Western Pacific typhoons NHC omits).
+  void loadGdacsStorms().then((collection) => {
+    const descriptor = LAYER_DESCRIPTORS.find((d) => d.kind === 'gdacs')
+    if (!collection || !descriptor || view.destroyed) return
+    const stormLayer = createStormsLayer(descriptor, collection)
+    map.add(stormLayer)
+    layers.push(stormLayer)
+    onLayersChanged?.([...layers])
+    refreshExtentStats()
+  })
+
   const applyQuakeFilter = startQuakeFiltering(view, quakeLayer, refreshExtentStats)
 
   const timeSlider =
@@ -391,9 +408,61 @@ export function createMapController({
     })
   }
 
+  // Selecting a storm draws its forecast/wind-radii polygons; closing the popup
+  // takes them away again. Both properties matter: `selectedFeature` reports
+  // picks and switches, but it stays set when the popup is merely dismissed, so
+  // the visibility of the popup is what tells us to clear.
+  let trackLayer: GeoJSONLayer | null = null
+  let trackRequest = 0
+  // GDACS serves a storm's geometry slowly (~490 KB, measured at 13 s), so a
+  // storm that has been looked at once is instant the second time.
+  const trackCache = new Map<string, StormTrack>()
+  const clearTrack = (): void => {
+    if (!trackLayer) return
+    if (!view.destroyed) view.map?.remove(trackLayer)
+    trackLayer.destroy()
+    trackLayer = null
+  }
+  const showTrack = (track: StormTrack, token: number): void => {
+    if (token !== trackRequest || view.destroyed) return
+    const layer = createStormTrackLayer(track)
+    trackLayer = layer
+    view.map?.add(layer)
+  }
+  const syncTrack = (): void => {
+    const open = Boolean(view.popup?.visible)
+    const trackUrl = open
+      ? (view.popup?.selectedFeature?.attributes as StormProperties | undefined)?.trackUrl
+      : undefined
+    clearTrack()
+    // Bumped per request, so a slow response for a storm the user has already
+    // left cannot paint over the map.
+    const token = ++trackRequest
+    // Decoded at the SDK boundary: graphic attributes are untyped, so this is
+    // what confirms the feed really supplied a track URL.
+    // pi-lens-ignore: no-runtime-typeof
+    if (typeof trackUrl !== 'string' || !trackUrl || view.destroyed) return
+
+    const cached = trackCache.get(trackUrl)
+    if (cached) {
+      showTrack(cached, token)
+      return
+    }
+    void loadStormTrack(trackUrl).then((track) => {
+      if (!track) return
+      trackCache.set(trackUrl, track)
+      showTrack(track, token)
+    })
+  }
+  const selectionHandle = watch(() => view.popup?.selectedFeature, syncTrack)
+  const popupHandle = watch(() => view.popup?.visible, syncTrack)
+
   // The view belongs to `<arcgis-map>`, which destroys it (and every layer with
   // it) on unmount; the controller only releases what it created itself.
   const dispose = (): void => {
+    selectionHandle.remove()
+    popupHandle.remove()
+    clearTrack()
     timeSlider?.remove()
   }
 

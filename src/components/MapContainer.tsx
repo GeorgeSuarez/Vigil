@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 // The components are registered by importing them (the same per-component
 // approach used for Calcite in main.tsx): no loader, no all-or-nothing module.
 import '@arcgis/map-components/components/arcgis-map'
+import '@arcgis/map-components/components/arcgis-expand'
 import '@arcgis/map-components/components/arcgis-home'
 import '@arcgis/map-components/components/arcgis-legend'
 import '@arcgis/map-components/components/arcgis-scale-bar'
@@ -17,6 +18,7 @@ import {
   type ViewStatus,
 } from '../lib/createMapController'
 import type { AppLayer, LayerId } from '../lib/layers'
+import { startPopupYield } from '../lib/popupYield'
 
 export interface MapContainerProps {
   basemap: string
@@ -57,12 +59,23 @@ export function MapContainer({
 }: MapContainerProps) {
   const timeStripRef = useRef<HTMLDivElement | null>(null)
   const controllerRef = useRef<MapController | null>(null)
+  const stopYieldRef = useRef<(() => void) | null>(null)
   const [layers, setLayers] = useState<readonly AppLayer[]>([])
   // Mounting the element on the next macrotask keeps StrictMode's mount →
   // unmount → remount from ever connecting a map: the first pass is cancelled
   // before the element exists, so exactly one view is built and nothing is
   // aborted mid-load.
   const [mapReady, setMapReady] = useState(false)
+  // The legend is a 300×420 card: fine as a rail on desktop, most of a phone.
+  // Below 720px it collapses behind its expand button instead.
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 720px)').matches)
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 720px)')
+    const onChange = (event: MediaQueryListEvent): void => setCompact(event.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setMapReady(true), 0)
@@ -82,6 +95,8 @@ export function MapContainer({
         if (controllerRef.current.view === view) return
         controllerRef.current.dispose()
         controllerRef.current = null
+        stopYieldRef.current?.()
+        stopYieldRef.current = null
       }
 
       const strip = timeStripRef.current
@@ -104,6 +119,8 @@ export function MapContainer({
         onLayersChanged: setLayers,
       })
       controllerRef.current = controller
+      // Popups carry the detail the panel would cover, so the panel yields.
+      stopYieldRef.current = startPopupYield(view)
       onReady?.(controller)
       setLayers(controller.layers)
     },
@@ -114,6 +131,8 @@ export function MapContainer({
     () => () => {
       controllerRef.current?.dispose()
       controllerRef.current = null
+      stopYieldRef.current?.()
+      stopYieldRef.current = null
     },
     [],
   )
@@ -145,12 +164,21 @@ export function MapContainer({
             zoom={initialZoom ?? DEFAULT_ZOOM}
             onarcgisViewReadyChange={attach}
           >
-            <arcgis-home slot="top-left" />
-            <arcgis-zoom slot="top-left" />
+            <arcgis-home slot="top-right" />
+            <arcgis-zoom slot="top-right" />
             {/* The World Geocoder behind Search needs an API key. */}
-            {hasApiKey && <arcgis-search slot="top-left" />}
-            <arcgis-legend slot="bottom-left" />
-            <arcgis-scale-bar slot="bottom-left" unit="dual" />
+            {hasApiKey && <arcgis-search slot="top-right" />}
+            {/* Bottom-right on desktop; on a phone the bottom sheet covers that
+                corner, so the same controls stack under the zoom buttons. */}
+            <arcgis-expand
+              slot={compact ? 'top-right' : 'bottom-right'}
+              expanded={!compact}
+              expandIcon="legend"
+              expandTooltip="Legend"
+            >
+              <arcgis-legend />
+            </arcgis-expand>
+            <arcgis-scale-bar slot={compact ? 'top-right' : 'bottom-right'} unit="dual" />
           </arcgis-map>
         )}
       </div>

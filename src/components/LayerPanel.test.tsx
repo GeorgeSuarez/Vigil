@@ -16,12 +16,12 @@ describe('LayerPanel', () => {
   })
 
   it('marks switches as checked according to visibility state', () => {
-    const { container } = setup({ earthquakes: true, hurricanes: false })
+    const { container } = setup({ earthquakes: true, nhc: false })
     const checked = container.querySelector(
       'calcite-switch[data-testid="layer-earthquakes"][checked]',
     )
     const unchecked = container.querySelector(
-      'calcite-switch[data-testid="layer-hurricanes"]:not([checked])',
+      'calcite-switch[data-testid="layer-nhc"]:not([checked])',
     )
     expect(checked).not.toBeNull()
     expect(unchecked).not.toBeNull()
