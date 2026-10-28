@@ -153,7 +153,7 @@ export function MapContainer({
       <div
         className="map-root"
         role="application"
-        aria-label="Interactive world map showing recent earthquakes and hurricanes"
+        aria-label="Interactive world map showing recent earthquakes, tropical cyclones, natural events and the space station"
       >
         {mapReady && (
           // Basemap and the initial extent are element properties, so React
