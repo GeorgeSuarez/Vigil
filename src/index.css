@@ -282,9 +282,9 @@ arcgis-scale-bar {
 
 /* ---------- Hover-reveal layer panel ---------- */
 
-/* With a mouse, the panel parks itself at the right edge as a tab and slides in
-   when the pointer is over it, so the map stays unobstructed. The parked tab is
-   still 18px wide and hoverable, which is what brings the panel back.
+/* With a mouse, the panel parks itself against the left edge of the map as a tab
+   and slides in when the pointer is over it, so the map stays unobstructed. The
+   parked tab is still 28px wide and hoverable, which is what brings it back.
 
    Keyboard users get the same reveal without a mouse: the panel's own controls
    stay in the tab order (only opacity is zeroed, never visibility), so the first

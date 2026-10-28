@@ -7,14 +7,15 @@ A live natural-hazard watcher built with the **ArcGIS Maps SDK for JavaScript**,
 - 🗺️ **ArcGIS Maps SDK for JavaScript 5.x** via tree-shakeable ES module imports (`@arcgis/core`)
 - 🧩 **Map components, not deprecated widgets** — `<arcgis-map>` owns the view and hosts `<arcgis-home>`, `<arcgis-zoom>`, `<arcgis-search>`, `<arcgis-legend>` and `<arcgis-scale-bar>` as slotted children; the strip below it uses `<arcgis-time-slider>`. Nothing in the app logs a deprecation.
 - 🧩 **Calcite Design System** web components (`calcite-switch`, `calcite-select`, `calcite-chip`) used natively from React 19
-- 📡 **Live USGS earthquake feed** — the past 7 days worldwide as a `GeoJSONLayer`: clustered when dense, coloured by a magnitude class-break ramp, auto-refreshing every 2 minutes, with popup links to USGS event pages; plus a static Atlantic-hurricanes sample layer. Both keyless, with custom popup templates
+- 📡 **Live USGS earthquake feed** — the past 7 days worldwide as a `GeoJSONLayer`: clustered when dense, coloured by a magnitude class-break ramp, auto-refreshing every 2 minutes, with popup links to USGS event pages. Keyless, with a custom popup template
+- 🌀 **Live tropical cyclones** — NHC's forecast cones for the Atlantic and East Pacific as a `MapImageLayer` (server-side symbology), plus GDACS's global storm list, which carries the Western Pacific typhoons NHC omits; alert level drives hue *and* size. Selecting a storm draws its track and wind-radii polygons until the popup closes. Saffir–Simpson category is derived in one module, so the two GeoJSON feeds' popups agree. Keyless.
 - 🔥 **NASA EONET natural events** — open wildfires, severe storms, and sea-and-lake ice from the last 30 days. Each category gets its own **inline vector glyph** (flame, cyclone, snowflake, volcano cone) plus a colour, so the map stays readable without relying on hue alone. Keyless.
 - 🛰️ **Live ISS position** — the space station's real-time spot, polled every 5 s from wheretheiss.at and driven through a self-cleaning `GraphicsLayer` with an altitude/velocity popup. A target button on the layer row flies the map to it (the marker can be anywhere on the globe, so enabling the layer alone is not enough to find it). Keyless.
 - 🔎 Search (geocoding) widget enabled when an API key is configured
 - 📊 Live status bar — map center, zoom, scale — driven by SDK `watch` handlers
-- 🌓 Dark, glassy UI with the SDK's dark theme and Calcite dark mode
+- 🌓 Dark, glassy UI drawn from app-owned tokens, with Calcite dark mode (`calcite-mode-dark`) and `color-scheme: dark`
 - ♻️ View lifecycle done right: created once on mount, destroyed on unmount (StrictMode-safe)
-- 🔗 **Shareable deep links** — basemap, extent, and layer visibility mirror into the URL hash and restore on load (`#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,hurricanes`)
+- 🔗 **Shareable deep links** — basemap, extent, and layer visibility mirror into the URL hash and restore on load (`#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,storms`)
 - 🔢 **Live view-extent stats** — per-layer feature counts in the status bar, recomputed via `queryFeatureCount` whenever the map stops moving or a layer toggles
 - ⏱️ **Time slider** — dual-thumb temporal filter over the quakes layer (SDK `TimeSlider` + `layer.timeInfo`); the map and the in-view counts both react to the active window. The range is derived from the layer's own time extent at load, not hardcoded. The band is collapsed by default at every width — the clock in the status bar reveals it, and collapsing it again releases the filter rather than leaving the map silently filtered.
 - ♿ **Accessibility** — landmarks with accessible names, a screen-reader announcer (ARIA live region) narrating settled map state, visible focus states, and `prefers-reduced-motion` support; every SDK-free component passes an axe audit in the unit suite.
@@ -131,8 +132,11 @@ src/
 │   ├── createMapController.ts # attaches layers, watchers, slider to a live view
 │   ├── eonet.ts       # NASA EONET fetch + property flattening
 │   ├── format.ts      # pure formatting helpers
+│   ├── gdacs.ts       # GDACS storm list/track fetch + property flattening
+│   ├── hurricane.ts   # Saffir–Simpson category from a wind speed and unit
 │   ├── icons.ts       # inline SVG glyph paths for EONET categories and ISS
 │   ├── layers.ts      # layer descriptors, popup HTML, renderers, ISS polling
+│   ├── popupYield.ts  # steps the side panel aside while a popup is open
 │   ├── urlState.ts    # shareable URL-hash parsing and serialisation
 │   └── nlq/
 │       ├── execute.ts   # intent → map operations

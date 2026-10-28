@@ -3,7 +3,7 @@
  * be pasted anywhere. Kept pure and SDK-free so it is fully unit-testable.
  *
  * Format: `#b=<basemap>&c=<lon>,<lat>&z=<zoom>&l=<visibleLayerIds>`
- * Example: `#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,hurricanes`
+ * Example: `#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,storms`
  */
 
 export interface UrlState {
