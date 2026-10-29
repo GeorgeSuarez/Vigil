@@ -9,10 +9,23 @@
 import type { LlmConfig } from './llmConfig'
 import type { NlqIntent } from './parser'
 
+/** The subset of JSON Schema these tool definitions use. Naming it beats
+ * `Record<string, unknown>`: the shape is authored here, so a typo in a
+ * `type` value should be a compile error rather than a rejected tool call. */
+interface ToolParameterProperties {
+  readonly type: 'number' | 'string'
+}
+
+interface ToolParameters {
+  readonly type: 'object'
+  readonly properties: Readonly<Record<string, ToolParameterProperties>>
+  readonly required?: readonly string[]
+}
+
 interface ToolDefinition {
   readonly name: string
   readonly description: string
-  readonly parameters: Record<string, unknown>
+  readonly parameters: ToolParameters
 }
 
 const TOOLS: readonly ToolDefinition[] = [
