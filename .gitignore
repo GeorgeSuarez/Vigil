@@ -35,3 +35,8 @@ coverage
 
 # Vitest run artifacts
 .vitest
+
+# Playwright run artifacts
+playwright-report
+test-results
+blob-report

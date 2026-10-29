@@ -16,5 +16,9 @@ export default defineConfig({
     globals: false,
     setupFiles: ['./src/test-setup.ts'],
     css: false,
+    // `e2e/` holds Playwright specs, which run under their own runner and would
+    // fail here (no `page` fixture). Restricting the glob is safer than
+    // overriding `exclude`, which would drop Vitest's defaults with it.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })

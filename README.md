@@ -18,7 +18,7 @@ A live natural-hazard watcher built with the **ArcGIS Maps SDK for JavaScript**,
 - 🔗 **Shareable deep links** — basemap, extent, and layer visibility mirror into the URL hash and restore on load (`#b=topo&c=-122.4194,37.7749&z=12&l=earthquakes,storms`)
 - 🔢 **Live view-extent stats** — per-layer feature counts in the status bar, recomputed via `queryFeatureCount` whenever the map stops moving or a layer toggles
 - ⏱️ **Time slider** — dual-thumb temporal filter over the quakes layer (SDK `TimeSlider` + `layer.timeInfo`); the map and the in-view counts both react to the active window. The range is derived from the layer's own time extent at load, not hardcoded. The band is collapsed by default at every width — the clock in the status bar reveals it, and collapsing it again releases the filter rather than leaving the map silently filtered.
-- ♿ **Accessibility** — landmarks with accessible names, a screen-reader announcer (ARIA live region) narrating settled map state, visible focus states, and `prefers-reduced-motion` support; every SDK-free component passes an axe audit in the unit suite.
+- ♿ **Accessibility** — landmarks with accessible names, a screen-reader announcer (ARIA live region) narrating settled map state, visible focus states, and `prefers-reduced-motion` support. Every SDK-free component passes an axe audit in the unit suite, and `pnpm run test:a11y` audits the assembled app in Chromium, where the map's own DOM and computed contrast are visible.
 - 💬 **Ask the map** — natural-language commands ("M5 in Alaska", "last 3 days", "zoom to Japan", "clear filters") drive real map operations: layer definition expressions, animated fly-to, and the temporal window. Runs keyless via a pure offline parser; configure an OpenAI, OpenCode Zen, or Anthropic key to route through LLM tool-calls instead (`VITE_LLM_PROVIDER` + `VITE_LLM_API_KEY`).
 - ☁️ **Cloudflare deployment** — the static SPA ships as a Cloudflare Worker with static assets and SPA fallback routing; `cloudflare.config.ts` plus the Cloudflare Vite plugin produce the Build Output that `cf deploy` uploads.
 
@@ -98,6 +98,8 @@ The first deploy prints the `*.workers.dev` URL. This project is live at <https:
 | `pnpm run deploy:dry-run` | Typecheck + build + validate, without uploading |
 | `pnpm test` | Vitest (run once) |
 | `pnpm test:watch` | Vitest watch mode |
+| `pnpm run test:a11y` | Playwright + axe audit in Chromium (builds and previews first) |
+| `pnpm run test:a11y:live` | The same audit against the deployed Worker |
 | `pnpm typecheck` | `tsc -b` |
 | `pnpm lint` | oxlint |
 | `pnpm format` | oxfmt write |
@@ -156,7 +158,8 @@ src/
 
 - **Vitest + jsdom + React Testing Library**
 - Pure logic (formatters, popup HTML builders, URL-hash codec, EONET flattening, NLQ parser, visibility hook) has direct unit coverage
-- Component tests render the real Calcite custom elements in jsdom and assert rendered attributes; `a11y.test.tsx` runs an axe audit over every SDK-free component
+- Component tests render the Calcite custom elements as unresolved tags in jsdom (no test imports the component modules, which ship CSS Vitest will not load) and assert rendered attributes; `a11y.test.tsx` runs an axe audit over every SDK-free component with the default axe-core ruleset
+- **Playwright + axe in Chromium** (`e2e/a11y.spec.ts`) audits the assembled app at desktop and phone sizes. It exists for what the unit suite structurally cannot see: `MapContainer` will not even import under Vitest, and jsdom has no layout, so the map's SDK-owned DOM and computed contrast are only observable in a browser. It caught two real defects on first run — an open legend popover with no accessible name, and a scrollable status row with no way to scroll it from the keyboard. `color-contrast` still reports *incomplete* for six nodes (the SDK attributions behind the glass overlays, and the emoji in the ask-the-map pill), which is axe declining to guess rather than a pass
 - `usgs-filter.test.ts` is a **network-backed integration test**: it loads the real USGS feed through the SDK's `GeoJSONLayer` to pin exactly when `definitionExpression` is honoured, including the case where an argued query bypasses it. It needs internet access and fails offline.
 - `MapView` itself is exercised in the browser: `createMapController` has no jsdom test, so view rendering, component layout and fly-to are verified manually
 

@@ -11,10 +11,12 @@ import type { ViewStatus } from '../lib/createMapController'
 import { BASEMAP_OPTIONS } from '../lib/basemaps'
 import { LAYER_DESCRIPTORS } from '../lib/layers'
 
-/** Runs axe on the rendered markup and asserts an empty violations list. */
+/** Runs axe on the rendered markup and asserts no violations. The matcher
+ * reports each violation with its rule help URL and failing node; the rule ids
+ * here are the default axe-core set, since jsdom supplies no layout, so
+ * `color-contrast` comes back incomplete and the browser pass covers it. */
 async function expectNoAxeViolations(container: HTMLElement): Promise<void> {
-  const results = await axe(container)
-  expect(results.violations).toEqual([])
+  expect(await axe(container)).toHaveNoViolations()
 }
 
 describe('component accessibility (axe)', () => {

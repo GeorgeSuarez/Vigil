@@ -1,6 +1,11 @@
 import '@testing-library/jest-dom/vitest'
-import { afterEach } from 'vitest'
+import { afterEach, expect } from 'vitest'
+import * as axeMatchers from 'vitest-axe/matchers'
 import { cleanup } from '@testing-library/react'
+
+// Registers `toHaveNoViolations`, which prints each violation with its help URL
+// and the failing node. `src/types/vitest-axe.d.ts` adds it to Vitest's types.
+expect.extend(axeMatchers)
 
 // vitest globals are off, so register RTL's auto-cleanup explicitly.
 afterEach(() => {

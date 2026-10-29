@@ -8,9 +8,12 @@ export interface MapAnnouncerProps {
 }
 
 export function MapAnnouncer({ message }: MapAnnouncerProps) {
+  // `<output>` carries the implicit `status` role, so the element is the
+  // semantics and no role attribute is needed. `aria-live` stays explicit: the
+  // implicit value comes from that role mapping, and this must not be silent.
   return (
-    <div role="status" aria-live="polite" className="sr-only">
+    <output aria-live="polite" className="sr-only">
       {message}
-    </div>
+    </output>
   )
 }

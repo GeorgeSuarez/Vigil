@@ -27,7 +27,13 @@ export function StatusBar({
 }: StatusBarProps) {
   return (
     <footer className="status-bar" aria-label="Map view status">
-      <div className="status-items">
+      {/* Focusable because it scrolls: on a phone the row overflows, and a
+          scroll container whose content is plain text is unreachable by
+          keyboard without its own tab stop — a documented WAI exception that
+          both jsx-a11y heuristics below object to. The `group` role exists so
+          the tab stop has a name to announce (ARIA forbids naming a bare div). */}
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex, jsx-a11y/prefer-tag-over-role */}
+      <div className="status-items" role="group" aria-label="Map state" tabIndex={0}>
         <VigilStat
           label="Center"
           emphasis

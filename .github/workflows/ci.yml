@@ -39,5 +39,14 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # Browser audit: the map's own DOM, Calcite shadow roots and real computed
+      # contrast, none of which jsdom can see. Builds and previews the app the
+      # same way the deploy does, so the audited bundle is the shipped one.
+      - name: Install the audit browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Accessibility audit (Chromium)
+        run: pnpm run test:a11y
+
       - name: Build
         run: pnpm run build

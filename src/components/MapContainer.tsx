@@ -175,6 +175,10 @@ export function MapContainer({
               expanded={!compact}
               expandIcon="legend"
               expandTooltip="Legend"
+              // Names the open popover. `expandTooltip` only titles the toggle
+              // button; the component labels its dialog from `label`, so without
+              // this the legend is a dialog with no accessible name.
+              label="Legend"
             >
               <arcgis-legend />
             </arcgis-expand>
