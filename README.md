@@ -69,7 +69,7 @@ Restart the dev server after changing `.env.local`. Vite embeds `VITE_*` values 
 
 ### Deploy to Cloudflare
 
-The app deploys as a **Cloudflare Worker with static assets** (the new Pages-on-Workers path). `cloudflare.config.ts` sets the Worker name (`arcgis-vigil`) and SPA fallback, and the Cloudflare Vite plugin produces the Build Output.
+The app deploys as a **Cloudflare Worker with static assets** (the new Pages-on-Workers path). `cloudflare.config.ts` sets the Worker name (`vigil`) and SPA fallback, and the Cloudflare Vite plugin produces the Build Output.
 
 ```bash
 pnpm install
@@ -85,7 +85,7 @@ pnpm exec cf build
 pnpm exec cf deploy --prebuilt --mode production
 ```
 
-The first deploy prints the `*.workers.dev` URL. This project is live at <https://arcgis-vigil.georgesuarezdev.workers.dev>. `VITE_*` values are baked into the client bundle at build time, so set them in `.env.local` locally or in the CI environment when deploying — Cloudflare runtime variables do not affect the static build.
+The first deploy prints the `*.workers.dev` URL. This project is live at <https://vigil.georgesuarezdev.workers.dev>. `VITE_*` values are baked into the client bundle at build time, so set them in `.env.local` locally or in the CI environment when deploying — Cloudflare runtime variables do not affect the static build.
 
 ## Scripts
 

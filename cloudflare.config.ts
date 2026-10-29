@@ -6,7 +6,7 @@ import { defineConfig } from 'cf/config'
 // index.html fallback for client-side routes.
 export default defineConfig({
   worker: {
-    name: 'arcgis-vigil',
+    name: 'vigil',
     compatibilityDate: '2026-10-19',
     observability: { enabled: true },
     workersDev: true,
